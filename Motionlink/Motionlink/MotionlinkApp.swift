@@ -11,7 +11,7 @@ import SwiftUI
 struct MotionlinkApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            EditorView()
         }
     }
 }
