@@ -9,33 +9,17 @@ import Foundation
 import MetalKit
 import SwiftUI
 
-public enum EngineTools {
-    case select
-    case control
-    case add
-
-    public func toString() -> String {
-        switch self {
-        case .select:
-            return "Select"
-        case .control:
-            return "Control"
-        case .add:
-            return "Add"
-        }
-    }
-}
-
 @MainActor
 public final class TNFEngine {
     private var device: MTLDevice?
 
-    // Tool management
-    private var tools: [EngineTools: ToolInterfaceProtocol] = [:]
-    private var activeTool: EngineTools?
-    private var areaSelectionTool: SelectionTool?
+    private var toolManager: ToolManager
 
-    private var viewportSize = vec2i(0, 0)
+    //NOTE: List of modules
+    private let moduleStack: ModuleStack
+
+    //NOTE: Renderer stuff
+    private let viewer: ViewerManager
 
     public init?() {
         guard let device = MTLCreateSystemDefaultDevice() else {
@@ -44,36 +28,44 @@ public final class TNFEngine {
         }
         self.device = device
 
-        areaSelectionTool = SelectionTool()
+        //NOTE:Initialize the module stack
+        self.moduleStack = ModuleStack()
 
-        areaSelectionTool?.setSelectionChangeHandler { points in
-            points.toNDC().forEach { point in
-                print("Selection point: \(point)")
-            }
-        }
+        //NOTE: Initialize the managers
+        toolManager = ToolManager()
+        viewer = ViewerManager(toolManager: toolManager)
+        //NOTE: Initialize modules
 
-        if let selectionTool = areaSelectionTool {
-            tools[.select] = selectionTool
-        }
+    }
+
+    public func addModule(_ module: Module) {
+        moduleStack.addModule(module)
+    }
+
+    public func removeModule(_ module: Module) {
+        moduleStack.removeModule(module)
     }
 
     public func start(with view: MTKView) {
-        if activeTool == nil {
+        if toolManager.getActiveTool() == nil {
             selectTool(.select)
         }
         Log.error("view size: \(view.bounds.size)")
+        viewer.start(view: view)
     }
 
     public func update(view: MTKView) {
-        viewportSize = view.bounds.size.asVec2i
 
-        if let activeTool = activeTool, let tool = tools[activeTool] {
-            tool.onUpdate()
-        }
+        toolManager.updateActiveTool()
 
+        moduleStack.updateAll(dt: 1.0 / 60.0)
+
+        viewer.start(view: view)
     }
 
     func resize(to size: CGSize) {
+
+        viewer.resize(size: size.asVec2i)
     }
 
     public func getMetalDevice() -> MTLDevice? {
@@ -87,23 +79,10 @@ public final class TNFEngine {
     }
 
     public func selectTool(_ toolType: EngineTools) {
+        toolManager.selectTool(toolType)
     }
 
     public func selectionToolCallback(toolType: EngineTools) {
-        if toolType != activeTool {
-            if let currentTool = activeTool, let tool = tools[currentTool] {
-                tool.onDeselected()
-            }
-
-            if let newTool = tools[toolType] {
-                activeTool = toolType
-                newTool.onSelected()
-            } else {
-                print("Warning: Tool \(toolType.toString()) not found")
-            }
-        } else {
-            Log.info("Tool \(toolType.toString()) is already active")
-        }
+        toolManager.selectTool(toolType)
     }
-
 }

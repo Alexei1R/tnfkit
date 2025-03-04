@@ -103,6 +103,68 @@ extension mat4f {
     }
 
     @inlinable
+    public static func orthographic(
+        left: Float, right: Float,
+        bottom: Float, top: Float,
+        nearZ: Float, farZ: Float
+    ) -> mat4f {
+        let width = right - left
+        let height = top - bottom
+        let depth = farZ - nearZ
+
+        var result = mat4f.identity
+
+        result.columns.0.x = 2 / width
+        result.columns.1.y = 2 / height
+        result.columns.2.z = -1 / depth
+
+        result.columns.3.x = -(right + left) / width
+        result.columns.3.y = -(top + bottom) / height
+        result.columns.3.z = -nearZ / depth
+
+        return result
+    }
+
+    @inlinable
+    public init(rotationAbout axis: vec3f, byAngle angle: Float) {
+        let axis = normalize(axis)
+        let sinAngle = sin(angle)
+        let cosAngle = cos(angle)
+        let cosValue = 1.0 - cosAngle
+
+        let x = axis.x
+        let y = axis.y
+        let z = axis.z
+
+        self.init(
+            vec4f(
+                cosAngle + cosValue * x * x,
+                cosValue * x * y + sinAngle * z,
+                cosValue * x * z - sinAngle * y,
+                0
+            ),
+            vec4f(
+                cosValue * y * x - sinAngle * z,
+                cosAngle + cosValue * y * y,
+                cosValue * y * z + sinAngle * x,
+                0
+            ),
+            vec4f(
+                cosValue * z * x + sinAngle * y,
+                cosValue * z * y - sinAngle * x,
+                cosAngle + cosValue * z * z,
+                0
+            ),
+            vec4f(0, 0, 0, 1)
+        )
+    }
+
+    @inlinable
+    public func clamp<T: Comparable>(_ value: T, _ min: T, _ max: T) -> T {
+        Swift.min(Swift.max(value, min), max)
+    }
+
+    @inlinable
     public func rotate(_ rad: Float, around center: vec3f, axis: Axis) -> mat4f {
         translate(center)
             .rotate(rad, axis: axis)
