@@ -98,6 +98,10 @@ public struct PositionNormalizer {
             view.enableSetNeedsDisplay = false
             view.isMultipleTouchEnabled = true
 
+            view.clearColor = MTLClearColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 1.0)
+            view.colorPixelFormat = .bgra8Unorm
+            view.depthStencilPixelFormat = .depth32Float
+
             engine.start(with: view)
             setupGestureRecognizers(for: view, with: context.coordinator)
 
@@ -541,4 +545,3 @@ public struct PositionNormalizer {
         }
     }
 #endif
-

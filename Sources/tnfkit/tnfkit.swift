@@ -23,9 +23,10 @@ public final class TNFEngine {
 
     public init?() {
         guard let device = MTLCreateSystemDefaultDevice() else {
-            print("Metal is not supported on this device")
+            Log.error("Failed to create Metal device ")
             return nil
         }
+
         self.device = device
 
         //NOTE:Initialize the module stack
@@ -60,7 +61,7 @@ public final class TNFEngine {
 
         moduleStack.updateAll(dt: 1.0 / 60.0)
 
-        viewer.start(view: view)
+        viewer.update(dt: 1 / 60, view: view)
     }
 
     func resize(to size: CGSize) {

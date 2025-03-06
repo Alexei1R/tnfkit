@@ -19,7 +19,7 @@ struct EditorView: View {
     var body: some View {
         HStack {
             
-            ToolsPanelView(toolSelector: toolSelector).background(.red)
+            ToolsPanelView(toolSelector: toolSelector).background(Color.blue.opacity(0.05))
             
             if let engine = engine {
                 engine.createViewport().ignoresSafeArea()

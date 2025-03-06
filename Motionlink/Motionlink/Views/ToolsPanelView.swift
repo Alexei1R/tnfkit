@@ -18,7 +18,7 @@ struct ToolsPanelView: View {
                         ToolButton(
                             icon: tool.icon,
                             isSelected: toolSelector.selectedTool?.id == tool.id,
-                            size: 30
+                            size: 35
                         ) {
                             toolSelector.selectedTool = tool
                         }
@@ -71,7 +71,7 @@ struct ToolButton: View {
                 .foregroundColor(isSelected ? .blue : .white)
                 .frame(width: size, height: size)
                 .background(isSelected ? Color.blue.opacity(0.3) : Color.gray.opacity(0.3))
-                .cornerRadius(8)
+                .cornerRadius(10)
         }
     }
 }

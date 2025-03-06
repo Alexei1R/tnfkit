@@ -32,7 +32,7 @@ public class SelectionTool: ToolInterfaceProtocol {
     private var cancellables = Set<AnyCancellable>()
 
     public init(
-        pointCountThreshold: Int = 5,
+        pointCountThreshold: Int = 3,
         onSelectionComplete: SelectionCompletionHandler? = nil,
         onSelectionChange: SelectionChangeHandler? = nil
     ) {
@@ -87,7 +87,6 @@ public class SelectionTool: ToolInterfaceProtocol {
                         switch state {
                         case .began, .changed:
 
-                            Log.error(position)
                             self.addPoint(position)
                             self.checkPointThreshold()
                         case .ended:
@@ -120,13 +119,11 @@ public class SelectionTool: ToolInterfaceProtocol {
         if currentCount >= lastCallbackPointCount + pointCountThreshold {
             onSelectionChange?(selectionPoints)
             lastCallbackPointCount = currentCount
-            print("Selection changed: now \(currentCount) points")
         }
     }
 
     private func finishSelection() {
         if !selectionPoints.isEmpty {
-            print("Selection finalized with \(selectionPoints.count) points")
             onSelectionComplete?(selectionPoints)
         }
         selectionPoints.removeAll()
@@ -138,18 +135,16 @@ public class SelectionTool: ToolInterfaceProtocol {
         isActive = true
         selectionPoints.removeAll()
         lastCallbackPointCount = 0
-        print("Selection tool activated")
     }
 
     public func onDeselected() {
         isActive = false
-        print("Selection tool deactivated")
     }
 
     public func onUpdate() {
     }
 
-    // Additional ool-specific methods
+    // Additional tool-specific methods
     private func clear() {
         selectionPoints.removeAll()
         lastCallbackPointCount = 0
