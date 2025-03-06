@@ -80,9 +80,32 @@ public final class StaticModel: Renderable, @unchecked Sendable {
             return false
         }
 
-        // Initialize uniforms with default values
-        updateUniformBuffer()
 
+        //FIXME - Temporary code to generate shader for testing
+        var config = PipelineConfig(name: "Model_\(UUID().uuidString)")
+        config.shaderLayout = ShaderLayout(elements: [
+            ShaderElement(type: .vertex, name: "vertex_main"),
+            ShaderElement(type: .fragment, name: "fragment_main"),
+        ])
+
+        let bufferLayout = BufferLayout(elements: [
+            BufferElement(type: .float3, name: "Position"),
+            BufferElement(type: .float3, name: "Normal"),
+            BufferElement(type: .float2, name: "TexCoords"),
+            BufferElement(type: .float3, name: "Tangent"),
+            BufferElement(type: .float3, name: "Bitangent"),
+        ])
+
+        config.bufferLayouts = [(bufferLayout, 0)]
+        config.depthPixelFormat = .depth32Float
+        config.depthWriteEnabled = true
+        config.depthCompareFunction = .lessEqual
+        config.blendMode = .opaque
+
+        if let bufferStack = bufferStack {
+            let shaderGenerator = ShaderGenerator(bufferStack: bufferStack, pipelineConfig: config)
+            Log.info("Generated shader \n \(shaderGenerator.generateShader())")
+        }
         return isReady
     }
 
@@ -117,10 +140,6 @@ public final class StaticModel: Renderable, @unchecked Sendable {
         uniforms.viewPosition = camera.position
         uniforms.lightPosition = lightPosition
 
-        updateUniformBuffer()
-    }
-
-    private func updateUniformBuffer() {
         guard let bufferStack = bufferStack,
             let uniformBufferHandle = uniformBufferHandle
         else {
@@ -177,4 +196,3 @@ public final class StaticModel: Renderable, @unchecked Sendable {
         }
     }
 }
-

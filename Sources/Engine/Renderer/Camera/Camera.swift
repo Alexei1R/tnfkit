@@ -265,7 +265,7 @@ public class Camera {
 extension Camera {
     public static func createDefaultCamera() -> Camera {
         return Camera(
-            position: vec3f(0, 2, -5),
+            position: vec3f(-2, 2, -5),
             target: vec3f(0, 0, 0),
             up: vec3f(0, 1, 0),
             projectionType: .perspective,
@@ -290,4 +290,3 @@ extension Camera {
         )
     }
 }
-

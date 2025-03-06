@@ -34,9 +34,10 @@ public final class TNFEngine {
 
         //NOTE: Initialize the managers
         toolManager = ToolManager()
+        // Default tool will be set during ToolManager initialization
+
         viewer = ViewerManager(toolManager: toolManager)
         //NOTE: Initialize modules
-
     }
 
     public func addModule(_ module: Module) {
@@ -48,24 +49,24 @@ public final class TNFEngine {
     }
 
     public func start(with view: MTKView) {
-        if toolManager.getActiveTool() == nil {
-            selectTool(.select)
+        // Make sure Control tool is selected
+        if toolManager.getActiveTool() != .control {
+            selectTool(.control)
         }
-        Log.error("view size: \(view.bounds.size)")
+
+        Log.info(
+            "Starting engine with active tool: \(toolManager.getActiveTool()?.toString() ?? "none")"
+        )
         viewer.start(view: view)
     }
 
     public func update(view: MTKView) {
-
         toolManager.updateActiveTool()
-
         moduleStack.updateAll(dt: 1.0 / 60.0)
-
         viewer.update(dt: 1 / 60, view: view)
     }
 
     func resize(to size: CGSize) {
-
         viewer.resize(size: size.asVec2i)
     }
 
@@ -87,3 +88,4 @@ public final class TNFEngine {
         toolManager.selectTool(toolType)
     }
 }
+

@@ -44,13 +44,22 @@ class ToolSelector: ObservableObject {
             name: "Select", icon: "scribble.variable",
             group: .selection),
 
-        Tool(name: "Control", icon: "cursorarrow", group: .manipulation),
+        Tool(name: "Control", icon: "move.3d", group: .manipulation),
         Tool(name: "Add", icon: "cube", group: .creation),
 
     ]
+    
+    init() {
+        // Set "Control" as the default tool
+        selectedTool = tools.first { $0.name == "Control" }
+    }
 
     func onToolSelection(_ callback: @escaping ToolSelectionCallback) {
         toolSelectionCallbacks.append(callback)
+        // Call the callback immediately with the current selection
+        if let selectedTool = selectedTool {
+            callback(selectedTool)
+        }
     }
     
     func onLayersVisibilityChange(_ callback: @escaping LayersVisibilityCallback) {

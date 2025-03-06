@@ -53,7 +53,7 @@ public class Renderer {
 
         // Update light position
         let lightOrbitRadius: Float = 5.0
-        let rotationAngle = Float(currentTime) * 0.5
+        let rotationAngle = Float(currentTime) * 2
         lightPosition = vec3f(
             cos(rotationAngle) * lightOrbitRadius,
             2.0,
@@ -104,9 +104,10 @@ public class Renderer {
         commandBuffer.present(drawable)
         commandBuffer.commit()
 
+        // Selection render pass
+
         // Reset state for next frame
         currentDrawable = nil
         currentRenderPassDescriptor = nil
     }
 }
-
