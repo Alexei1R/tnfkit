@@ -190,16 +190,14 @@ extension mat4f {
         scale(vec3f(repeating: uniform))
     }
 
-    @inlinable
     public func translate(_ offset: vec3f) -> mat4f {
-        var result = self
-        result.columns.3 = vec4f(
-            result.columns.3.x + offset.x,
-            result.columns.3.y + offset.y,
-            result.columns.3.z + offset.z,
-            1
+        let translation = mat4f(
+            vec4f(1, 0, 0, 0),
+            vec4f(0, 1, 0, 0),
+            vec4f(0, 0, 1, 0),
+            vec4f(offset.x, offset.y, offset.z, 1)
         )
-        return result
+        return self * translation
     }
 
     @inlinable

@@ -48,7 +48,7 @@ public class Camera {
     private let minRadius: Float = 0.1
 
     public init(
-        position: vec3f = vec3f(0, 0, -5),
+        position: vec3f = vec3f(0, 0, 5),
         target: vec3f = vec3f(0, 0, 0),
         up: vec3f = vec3f(0, 1, 0),
         projectionType: CameraProjection = .perspective,

@@ -5,8 +5,6 @@
 
 import Metal
 
-
-
 public class CommandBuffer {
     private let commandBuffer: MTLCommandBuffer
     private var activeEncoder: Any?
@@ -149,5 +147,9 @@ public class CommandBuffer {
     public func setLabel(_ label: String) {
         commandBuffer.label = label
     }
-}
 
+    public func clearActiveEncoder() {
+        activeEncoder = nil
+        currentEncoderType = nil
+    }
+}

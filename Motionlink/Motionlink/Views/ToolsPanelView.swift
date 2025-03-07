@@ -9,35 +9,48 @@ import SwiftUI
 
 struct ToolsPanelView: View {
     @ObservedObject var toolSelector: ToolSelector
-
+    
+    private var toolButtons: some View {
+        VStack(spacing: 8) {
+            ForEach(toolSelector.availableTools) { tool in
+                toolButton(for: tool)
+            }
+        }
+    }
+    
+    private func toolButton(for tool: Tool) -> some View {
+        let isSelected = toolSelector.selectedTool?.id == tool.id
+        
+        return ToolButton(
+            icon: tool.icon,
+            isSelected: isSelected,
+            size: 35
+        ) {
+            toolSelector.selectedTool = tool
+        }
+    }
+    
+    private var layersToggleButton: some View {
+        Button(action: {
+            withAnimation {
+                toolSelector.showLayers.toggle()
+            }
+        }) {
+            Image(systemName: "sidebar.left")
+                .foregroundColor(.white)
+                .frame(width: 30, height: 30)
+                .background(Color.blue.opacity(0.3))
+                .cornerRadius(8)
+        }
+    }
+    
     var body: some View {
         VStack {
             ScrollView {
-                VStack {
-                    ForEach(toolSelector.tools) { tool in
-                        ToolButton(
-                            icon: tool.icon,
-                            isSelected: toolSelector.selectedTool?.id == tool.id,
-                            size: 35
-                        ) {
-                            toolSelector.selectedTool = tool
-                        }
-                    }
-                }
+                toolButtons
             }
             Spacer()
-
-            Button(action: {
-                withAnimation {
-                    toolSelector.showLayers.toggle()
-                }
-            }) {
-                Image(systemName: "sidebar.left")
-                    .foregroundColor(.white)
-                    .frame(width: 30, height: 30)
-                    .background(Color.blue.opacity(0.3))
-                    .cornerRadius(8)
-            }
+            layersToggleButton
         }
         .padding(.vertical)
         .padding(.horizontal, 8)

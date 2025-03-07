@@ -18,6 +18,7 @@ struct SelectionVertex {
 public final class SelectionArea: Renderable, @unchecked Sendable {
     private var bufferStack: BufferStack?
     private var pipelineHandle: ResourceHandle?
+    private var selectionPipelineHandle: ResourceHandle?  // Special pipeline for selection pass
     private var rendererAPI: RendererAPI?
 
     // Vertices are updated dynamically
@@ -34,12 +35,15 @@ public final class SelectionArea: Renderable, @unchecked Sendable {
 
     // Selection color and transparency
     private var selectionColor: vec4f = vec4f(1.0, 0.5, 0.0, 0.3)  // Semi-transparent orange
+    private var highlightColor: vec4f = vec4f(1.0, 1.0, 1.0, 1.0)  // White for selection texture
 
     // Flag to track if selection is active and should be drawn
-    private var hasSelection: Bool = false
+    public var hasSelection: Bool = false
+    private var isVisible: Bool = true
 
     public var isReady: Bool {
-        return pipelineHandle != nil && bufferStack != nil && vertexBufferHandle != nil
+        return (pipelineHandle != nil || selectionPipelineHandle != nil) && bufferStack != nil
+            && vertexBufferHandle != nil
     }
 
     public init() {
@@ -52,8 +56,11 @@ public final class SelectionArea: Renderable, @unchecked Sendable {
         // Create buffer stack
         bufferStack = BufferStack(device: rendererAPI.device, label: "Selection Buffer Stack")
 
-        // Create pipeline with transparency
-        pipelineHandle = createPipeline(rendererAPI: rendererAPI)
+        // Create pipeline with transparency for normal rendering
+        pipelineHandle = createPipeline(rendererAPI: rendererAPI, forSelectionPass: false)
+
+        // Create pipeline for selection render pass with RGBA32Float format
+        selectionPipelineHandle = createPipeline(rendererAPI: rendererAPI, forSelectionPass: true)
 
         // Create initial empty buffer (will be updated with points)
         vertexBufferHandle = bufferStack?.createBuffer(
@@ -153,8 +160,11 @@ public final class SelectionArea: Renderable, @unchecked Sendable {
         return triangleVertices
     }
 
-    private func createPipeline(rendererAPI: RendererAPI) -> ResourceHandle {
-        var config = PipelineConfig(name: "Selection_\(UUID().uuidString)")
+    private func createPipeline(rendererAPI: RendererAPI, forSelectionPass: Bool) -> ResourceHandle
+    {
+        var config = PipelineConfig(
+            name: forSelectionPass
+                ? "SelectionPass_\(UUID().uuidString)" : "Selection_\(UUID().uuidString)")
 
         // Use simple vertex and fragment shaders for 2D rendering
         config.shaderLayout = ShaderLayout(elements: [
@@ -172,14 +182,24 @@ public final class SelectionArea: Renderable, @unchecked Sendable {
         config.depthWriteEnabled = false  // Don't write to depth buffer for overlay
         config.depthCompareFunction = .always  // Always draw on top
 
+        // Important: Set the correct pixel format for the selection pass
+        if forSelectionPass {
+            config.colorPixelFormat = .rgba32Float  // For selection render pass
+        }
+
         return rendererAPI.createPipeline(config: config)
     }
 
     public func update(camera: Camera, lightPosition: vec3f) {
+        // No updates needed for selection area
     }
 
     public func getPipeline() -> Pipeline? {
         return pipelineHandle?.getPipeline()
+    }
+
+    public func getSelectionPipeline() -> Pipeline? {
+        return selectionPipelineHandle?.getPipeline()
     }
 
     public func getBufferStack() -> BufferStack? {
@@ -187,7 +207,8 @@ public final class SelectionArea: Renderable, @unchecked Sendable {
     }
 
     public func draw(renderEncoder: MTLRenderCommandEncoder) {
-        guard hasSelection,
+        // Skip drawing if not visible or no selection
+        guard isVisible && hasSelection,
             vertexCount > 0,
             let bufferStack = bufferStack,
             let vertexBufferHandle = self.vertexBufferHandle,
@@ -195,10 +216,16 @@ public final class SelectionArea: Renderable, @unchecked Sendable {
             isReady
         else { return }
 
-        // Set selection color
+        // Check if this is a selection pass render encoder
+        let isSelectionPass = renderEncoder.label?.contains("SelectionPass") == true
+
+        // Choose the right color for the current pass - using var instead of let
+        var colorToUse = isSelectionPass ? highlightColor : selectionColor
+
+        // Set the appropriate color
         let colorBufferIndex = 0
         renderEncoder.setFragmentBytes(
-            &selectionColor,
+            &colorToUse,
             length: MemoryLayout<vec4f>.size,
             index: colorBufferIndex)
 
@@ -211,5 +238,19 @@ public final class SelectionArea: Renderable, @unchecked Sendable {
             vertexStart: 0,
             vertexCount: vertexCount
         )
+    }
+
+    // Implementation of visibility control
+    public func setVisible(_ visible: Bool) {
+        isVisible = visible
+    }
+
+    // Helper methods for selection state
+    public func getSelectionPointCount() -> Int {
+        return vertices.count > 0 ? vertices.count / 3 : 0  // Divide by 3 since we use triangles
+    }
+
+    public var isActive: Bool {
+        return hasSelection && isVisible
     }
 }
