@@ -81,20 +81,16 @@ public class RendererAPI {
     //     return RenderPass()
     // }
 
-    // New method to create pipelines through the Pipeline class
     public func createPipeline(config: PipelineConfig) -> ResourceHandle {
-        // Check if we have this pipeline cached
         if let cached = pipelineCache[config.name] {
             return cached
         }
 
-        // Create new pipeline
         guard let pipeline = Pipeline(device: device, config: config) else {
             Log.error("Failed to create pipeline: \(config.name)")
             fatalError("Could not create pipeline")
         }
 
-        // Cache the pipeline
         let handle = ResourceHandle(resource: pipeline, type: .pipeline)
         pipelineCache[config.name] = handle
         return handle

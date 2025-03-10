@@ -9,104 +9,127 @@ import MetalKit
 
 @MainActor
 public class Renderer {
-    private var currentView: MTKView
     private var rendererAPI: RendererAPI!
-    private var renderables: [Renderable] = []
 
-    // Drawing state management
-    private var currentDrawable: CAMetalDrawable?
-    private var currentRenderPassDescriptor: MTLRenderPassDescriptor?
     private var currentCamera: Camera?
-    private var lastUpdateTime: TimeInterval
-    private var lightPosition: vec3f = vec3f(5, 5, 5)
 
-    public init?(view: MTKView) {
-        self.currentView = view
-        self.lastUpdateTime = CACurrentMediaTime()
+    private var pipelineHandle: ResourceHandle?
 
+    private var bufferStack: BufferStack?
+    private var indexCount: Int = 0
+
+    public init?() {
         guard let api = RendererAPI() else {
             Log.error("Failed to create RendererAPI")
             return nil
         }
         self.rendererAPI = api
+        bufferStack = BufferStack(device: rendererAPI.device)
+
+        pipelineHandle = self.createPipeline()
+        createBufferStack()
+
+    }
+
+    func createBufferStack() {
+        //QUAD
+
+        struct Vertex {
+            var position: vec3f
+            var color: vec4f
+        }
+
+        let quadVertices: [Vertex] = [
+            // Bottom left
+            Vertex(position: vec3f(-0.5, -0.5, 0.0), color: vec4f(1.0, 0.0, 0.0, 1.0)),
+            // Bottom right
+            Vertex(position: vec3f(0.5, -0.5, 0.0), color: vec4f(0.0, 1.0, 0.0, 1.0)),
+            // Top right
+            Vertex(position: vec3f(0.5, 0.5, 0.0), color: vec4f(0.0, 0.0, 1.0, 1.0)),
+            // Top left
+            Vertex(position: vec3f(-0.5, 0.5, 0.0), color: vec4f(1.0, 1.0, 0.0, 1.0)),
+        ]
+
+        let quadIndices: [UInt16] = [
+            0, 1, 2,
+            2, 3, 0,
+        ]
+
+        indexCount = quadIndices.count
+
+        bufferStack?.addBuffer(type: .vertex, data: quadVertices)
+        bufferStack?.addBuffer(type: .index, data: quadIndices)
+
+    }
+
+    func createPipeline() -> ResourceHandle {
+
+        var config = PipelineConfig(name: "Default")
+        config.shaderLayout = ShaderLayout(elements: [
+            ShaderElement(type: .vertex, name: "vertex_main"),
+            ShaderElement(type: .fragment, name: "fragment_main"),
+        ])
+        let bufferLayout = BufferLayout(elements: [
+            BufferElement(type: .float3, name: "Position"),
+            BufferElement(type: .float4, name: "Color"),
+        ])
+
+        config.bufferLayouts = [(bufferLayout, 0)]
+        config.depthPixelFormat = .depth32Float
+        config.depthWriteEnabled = true
+        config.depthCompareFunction = .lessEqual
+        config.blendMode = .opaque
+
+        return rendererAPI.createPipeline(config: config)
     }
 
     public func addRenderable(_ renderable: Renderable) {
-        if renderable.prepare(rendererAPI: rendererAPI) {
-            renderables.append(renderable)
-        }
     }
 
-    public func beginFrame(camera: Camera, view: MTKView) {
-        self.currentView = view
-        self.currentDrawable = view.currentDrawable
-        self.currentRenderPassDescriptor = view.currentRenderPassDescriptor
+    public func beginFrame(camera: Camera) {
         self.currentCamera = camera
 
-        // Early exit if we can't render
-        guard currentDrawable != nil, currentRenderPassDescriptor != nil else {
+    }
+
+    public func endFrame(view: MTKView) {
+        guard let rendererAPI = rendererAPI else {
+            Log.error("RendererAPI is not initialized")
+            return
+        }
+        guard let currentDrawable = view.currentDrawable else {
+            Log.error("Failed to get currentDrawable")
             return
         }
 
-        let currentTime = CACurrentMediaTime()
-        lastUpdateTime = currentTime
-
-        // Update light position
-        let lightOrbitRadius: Float = 5.0
-        let rotationAngle = Float(currentTime) * 0.5
-        lightPosition = vec3f(
-            cos(rotationAngle) * lightOrbitRadius,
-            2.0,
-            sin(rotationAngle) * lightOrbitRadius
-        )
-
-        // Update each renderable with camera and light information
-        for renderable in renderables {
-            renderable.update(camera: camera, lightPosition: lightPosition)
-        }
-    }
-
-    public func drawModel() {
-        // Method kept for backward compatibility
-    }
-
-    public func resize(size: vec2i) {
-        // Use the camera's built-in method to handle aspect ratio changes
-        if let camera = currentCamera {
-            let aspectRatio = Float(size.x) / Float(size.y)
-            camera.setAspectRatio(aspectRatio)
-        }
-    }
-
-    public func endFrame() {
-        guard let drawable = currentDrawable,
-            let renderPassDescriptor = currentRenderPassDescriptor,
-            !renderables.isEmpty
-        else {
+        //NOTE: Main render pass
+        guard let renderPassDescriptor = view.currentRenderPassDescriptor else {
+            Log.error("Failed to get renderPassDescriptor")
             return
         }
 
         let commandBuffer = rendererAPI.createCommandBuffer()
         let renderEncoder = commandBuffer.beginRenderPass(descriptor: renderPassDescriptor)
 
-        // Draw each renderable with its own pipeline and buffers
-        for renderable in renderables {
-            if let pipeline = renderable.getPipeline() {
-                // Bind the renderable's pipeline to the encoder
-                pipeline.bind(to: renderEncoder)
-
-                // Draw using the renderable's draw method
-                renderable.draw(renderEncoder: renderEncoder)
-            }
+        guard let pipeline = pipelineHandle?.getPipeline() else {
+            Log.error("Failed to get pipeline")
+            return
         }
 
-        commandBuffer.endActiveEncoder()
-        commandBuffer.present(drawable)
-        commandBuffer.commit()
+        pipeline.bind(to: renderEncoder)
+        bufferStack?.bind(encoder: renderEncoder)
 
-        // Reset state for next frame
-        currentDrawable = nil
-        currentRenderPassDescriptor = nil
+        //NOTE: Draw
+        renderEncoder.drawIndexedPrimitives(
+            type: .triangle,
+            indexCount: indexCount,
+            indexType: .uint16,
+            indexBuffer: (bufferStack?.getBuffer(type: .index))!,
+            indexBufferOffset: 0
+        )
+        commandBuffer.endActiveEncoder()
+        //NOTE: End render pass
+
+        commandBuffer.present(currentDrawable)
+        commandBuffer.commit()
     }
 }
-

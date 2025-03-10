@@ -35,7 +35,6 @@ public class ToolManager {
 
     private func setupDefaultTools() {
         let selectionTool = SelectionTool()
-
         tools[.select] = selectionTool
     }
 

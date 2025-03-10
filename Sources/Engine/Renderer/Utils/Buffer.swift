@@ -22,7 +22,7 @@ public enum BufferType: Int, CaseIterable {
         case .index: return -1
         case .uniform: return 1
         case .material: return 2
-        case .texture: return 0  // Textures use a different binding space
+        case .texture: return 0
         case .custom: return 3
         }
     }
@@ -66,7 +66,7 @@ class Buffer {
     var type: BufferType
     var sizeBytes: Int
     var order: Int
-    var texture: MTLTexture?  // Add texture property
+    var texture: MTLTexture?
 
     init(
         buffer: MTLBuffer, type: BufferType, sizeBytes: Int, order: Int, texture: MTLTexture? = nil
@@ -149,7 +149,6 @@ public final class BufferStack {
         return handle
     }
 
-    // Add texture directly
     @discardableResult
     public func addTexture(_ texture: MTLTexture) -> Handle? {
         let handle = Handle()
@@ -203,11 +202,15 @@ public final class BufferStack {
         return buffers[handle]?.buffer
     }
 
+    public func getBuffer(type: BufferType) -> MTLBuffer? {
+        return buffers.values.first { $0.type == type }?.buffer
+    }
+
     public func getTexture(handle: Handle) -> MTLTexture? {
         return buffers[handle]?.texture
     }
 
-    public func bindBuffers(encoder: MTLRenderCommandEncoder) {
+    public func bind(encoder: MTLRenderCommandEncoder) {
         var typeGroups: [BufferType: [Buffer]] = [:]
 
         for buffer in buffers.values {

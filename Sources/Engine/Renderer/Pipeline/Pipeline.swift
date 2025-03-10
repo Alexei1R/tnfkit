@@ -46,10 +46,11 @@ public struct PipelineConfig {
 }
 
 public class Pipeline {
-    public let state: MTLRenderPipelineState
-    public let depthState: MTLDepthStencilState?
 
     public let config: PipelineConfig
+
+    public let state: MTLRenderPipelineState
+    public let depthState: MTLDepthStencilState?
 
     private var library: MTLLibrary!
     private let device: MTLDevice

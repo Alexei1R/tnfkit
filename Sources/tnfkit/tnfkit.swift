@@ -26,16 +26,13 @@ public final class TNFEngine {
             Log.error("Failed to create Metal device ")
             return nil
         }
-
         self.device = device
 
         //NOTE:Initialize the module stack
         self.moduleStack = ModuleStack()
 
-        //NOTE: Initialize the managers
         toolManager = ToolManager()
         viewer = ViewerManager(toolManager: toolManager)
-        //NOTE: Initialize modules
 
     }
 
@@ -56,11 +53,9 @@ public final class TNFEngine {
     }
 
     public func update(view: MTKView) {
-
         toolManager.updateActiveTool()
 
         moduleStack.updateAll(dt: 1.0 / 60.0)
-
         viewer.update(dt: 1 / 60, view: view)
     }
 
