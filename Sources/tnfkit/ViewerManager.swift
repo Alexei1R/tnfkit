@@ -187,4 +187,8 @@ class ViewerManager {
             modelSelectionProcessor.clearSelection(model: model)
         }
     }
+
+    public func debugButton() {
+        Log.error("Debug button pressed")
+    }
 }

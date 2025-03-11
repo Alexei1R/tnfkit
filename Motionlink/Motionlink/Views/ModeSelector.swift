@@ -23,6 +23,9 @@ enum Mode: String, CaseIterable, Identifiable {
 class ModeSelector: ObservableObject {
     typealias ModeSelectionCallback = (Mode) -> Void
     private var modeSelectionCallbacks: [ModeSelectionCallback] = []
+
+    typealias ModeClickCallback = (Mode) -> Void
+    private var modeClickCallbacks: [ModeClickCallback] = []
     
     @Published var selectedMode: Mode = .object {
         didSet {
@@ -44,4 +47,17 @@ class ModeSelector: ObservableObject {
             callback(selectedMode)
         }
     }
+
+
+
+    func onModeClick(_ callback: @escaping ModeClickCallback) {
+        modeClickCallbacks.append(callback)
+        callback(selectedMode)
+    }
+
+    func removeModeClickCallback(_ callback: @escaping ModeClickCallback) {
+        modeClickCallbacks.removeAll(where: { $0 as AnyObject === callback as AnyObject })
+    }
+
+
 }

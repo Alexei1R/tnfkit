@@ -1,9 +1,8 @@
 // Copyright (c) 2025 The Noughy Fox
-// Created by: Alexei1R
-// Date: 2025-03-06
-//
+// 
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
+
 
 import Core
 import Foundation
@@ -198,6 +197,7 @@ public final class SelectableModel: Renderable, @unchecked Sendable {
         config.shaderLayout = ShaderLayout(elements: [
             ShaderElement(type: .vertex, name: "vertex_selection"),
             ShaderElement(type: .fragment, name: "fragment_selection"),
+            ShaderElement(type: .compute, name: "compute_selection"),
         ])
 
         let bufferLayout = BufferLayout(elements: [

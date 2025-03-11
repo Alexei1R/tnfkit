@@ -79,6 +79,9 @@ struct ModeSelectorView: View {
             
             Button(action: {
                 print("Selected mode: \(toolSelector.currentMode.rawValue)")
+                //call the callback, on click 
+
+
             }) {
                 HStack(spacing: 8) {
                     Image(systemName: toolSelector.currentMode.icon)

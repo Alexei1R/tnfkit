@@ -87,5 +87,8 @@ public final class TNFEngine {
     public func selectionToolCallback(toolType: EngineTools) {
         toolManager.selectTool(toolType)
     }
-}
 
+    public func debugButton() {
+        viewer.debugButton()
+    }
+}

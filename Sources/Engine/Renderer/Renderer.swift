@@ -35,7 +35,6 @@ public class Renderer {
         }
         self.rendererAPI = api
 
-        // Initialize selection render pass
         initializeSelectionPass()
     }
 
@@ -75,17 +74,14 @@ public class Renderer {
     }
 
     public func drawModel() {
-        // Method kept for backward compatibility
     }
 
     public func resize(size: vec2i) {
-        // Use the camera's built-in method to handle aspect ratio changes
         if let camera = currentCamera {
             let aspectRatio = Float(size.x) / Float(size.y)
             camera.setAspectRatio(aspectRatio)
         }
 
-        // Resize the selection render pass
         resizeSelectionPass(size: size)
     }
 
@@ -100,13 +96,10 @@ public class Renderer {
         let commandBuffer = rendererAPI.createCommandBuffer()
         let renderEncoder = commandBuffer.beginRenderPass(descriptor: renderPassDescriptor)
 
-        // Draw each renderable with its own pipeline and buffers
         for renderable in renderables {
             if let pipeline = renderable.getPipeline() {
-                // Bind the renderable's pipeline to the encoder
                 pipeline.bind(to: renderEncoder)
 
-                // Draw using the renderable's draw method
                 renderable.draw(renderEncoder: renderEncoder)
             }
         }
@@ -127,9 +120,6 @@ public class Renderer {
         currentRenderPassDescriptor = nil
     }
 
-    // MARK: - Selection Rendering
-
-    /// Initialize the selection render pass
     private func initializeSelectionPass() {
         guard let api = rendererAPI else {
             Log.error("Cannot initialize selection pass - no renderer API")
@@ -142,13 +132,10 @@ public class Renderer {
         let width = max(Int(currentView.drawableSize.width), 64)
         let height = max(Int(currentView.drawableSize.height), 64)
 
-        // Log the dimensions we're using
         Log.info("Initializing selection pass with dimensions: \(width) x \(height)")
 
-        // Resize the selection pass with these dimensions
         selectionRenderPass?.resize(width: width, height: height)
 
-        // We'll resize again when the view is properly sized
         if width == 64 || height == 64 {
             Log.warning(
                 "Default minimum dimensions used for selection pass - will resize when view is ready"
@@ -156,7 +143,6 @@ public class Renderer {
         }
     }
 
-    /// Render selection areas to an off-screen texture
     private func renderSelectionPass() {
         guard let selectionRenderPass = selectionRenderPass,
             let camera = currentCamera
@@ -164,11 +150,9 @@ public class Renderer {
             return
         }
 
-        // Create a command buffer for the selection pass
         let commandBuffer = rendererAPI.createCommandBuffer()
         commandBuffer.setLabel("SelectionPassCommandBuffer")
 
-        // Begin the selection render pass
         guard
             let selectionEncoder = selectionRenderPass.beginSelectionPass(
                 commandBuffer: commandBuffer)
@@ -176,32 +160,22 @@ public class Renderer {
             return
         }
 
-        // Set a label to identify this encoder
         selectionEncoder.label = "SelectionPass"
 
-        // Find any SelectionArea renderable to render
         for renderable in renderables {
             if let selectionArea = renderable as? SelectionArea {
-                // Use the special selection pipeline for RGBA32Float format
                 if let pipeline = selectionArea.getSelectionPipeline() {
-                    // Bind the selection pipeline to the encoder
                     pipeline.bind(to: selectionEncoder)
 
-                    // Draw using the renderable's draw method
                     selectionArea.draw(renderEncoder: selectionEncoder)
                 } else {
                     Log.error("Missing selection pipeline for SelectionArea")
                 }
-                break  // Only render the first selection area found
+                break  
             }
         }
 
-        // End the encoder through the command buffer's tracking system
-        // This avoids ending the encoder twice
         commandBuffer.endActiveEncoder()
-
-        // Commit the command buffer and wait for it to complete
-        // This ensures the selection texture is ready before it's used
         commandBuffer.commitAndWait()
     }
 
