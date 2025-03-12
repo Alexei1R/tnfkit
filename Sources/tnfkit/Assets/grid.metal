@@ -23,12 +23,10 @@ vertex VertexOut grid_vertex(VertexIn in [[stage_in]],
                              [[buffer(3)]]) {
   VertexOut out;
 
-  // Transform vertex position through MVP matrix chain
   float4 worldPosition = modelMatrix * float4(in.position, 1.0);
   float4 viewPosition = viewMatrix * worldPosition;
   out.position = projectionMatrix * viewPosition;
 
-  // Pass color to fragment shader
   out.color = in.color;
 
   return out;

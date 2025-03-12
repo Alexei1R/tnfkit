@@ -16,7 +16,6 @@ struct VertexOut {
 
 vertex VertexOut selection_vertex(VertexIn in [[stage_in]]) {
   VertexOut out;
-  // Input is already in NDC coordinates (-1 to 1)
   out.position = float4(in.position.x, in.position.y, 0.0, 1.0);
   return out;
 }

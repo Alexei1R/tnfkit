@@ -34,7 +34,6 @@ public final class TNFEngine {
 
         //NOTE: Initialize the managers
         toolManager = ToolManager()
-        // Default tool will be set during ToolManager initialization
 
         viewer = ViewerManager(toolManager: toolManager)
         //NOTE: Initialize modules
@@ -49,7 +48,6 @@ public final class TNFEngine {
     }
 
     public func start(with view: MTKView) {
-        // Make sure Control tool is selected
         if toolManager.getActiveTool() != .control {
             selectTool(.control)
         }

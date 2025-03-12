@@ -62,12 +62,10 @@ public final class Scene {
         registry.selection(requiring: type1, type2)
     }
 
-    // Get all entities
     public var entities: [Entity] {
         Array(registry.entities)
     }
 
-    // Get all named entities with their names
     public var namedEntityList: [(name: String, entity: Entity)] {
         Array(namedEntities).map { ($0.key, $0.value) }
     }

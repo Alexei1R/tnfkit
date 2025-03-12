@@ -9,12 +9,15 @@ import Foundation
 import MetalKit
 
 public enum EngineTools {
+    case none
     case select
     case control
     case add
 
     public func toString() -> String {
         switch self {
+        case .none:
+            return "none"
         case .select:
             return "Select"
         case .control:
@@ -32,16 +35,13 @@ public class ToolManager {
 
     public init() {
         setupDefaultTools()
-        // Set control as the default tool
         selectTool(.control)
     }
 
     private func setupDefaultTools() {
-        // Initialize the tools we have implementations for
         let selectionTool = SelectionTool()
         tools[.select] = selectionTool
 
-        // Create a basic implementation for the control tool
         tools[.control] = BasicTool(name: "Control Tool")
     }
 
@@ -49,17 +49,16 @@ public class ToolManager {
         if toolType != activeTool {
             if let currentTool = activeTool, var tool = tools[currentTool] {
                 tool.onDeselected()
-                tools[currentTool] = tool  // Save the updated state back to the dictionary
+                tools[currentTool] = tool
             }
 
             if var newTool = tools[toolType] {
                 activeTool = toolType
                 newTool.onSelected()
-                tools[toolType] = newTool  // Save the updated state back to the dictionary
+                tools[toolType] = newTool
                 Log.info("Tool switched to: \(toolType.toString())")
             } else {
                 Log.warning("Tool \(toolType.toString()) not found, creating basic implementation")
-                // Create a default implementation for the tool
                 var defaultTool = BasicTool(name: toolType.toString())
                 defaultTool.onSelected()
                 tools[toolType] = defaultTool
@@ -88,22 +87,19 @@ public class ToolManager {
         return tools[toolType]
     }
 
-    // Check if a specific tool type is active
     public func isToolActive(_ toolType: EngineTools) -> Bool {
         return activeTool == toolType
     }
 }
 
-// Basic tool implementation that conforms to ToolInterfaceProtocol
-// Using struct so we can use the default mutating implementations
 @MainActor
 struct BasicTool: ToolInterfaceProtocol {
     func onDeselected() {
     }
-    
+
     func onSelected() {
     }
-    
+
     public var isActive: Bool = false
     private let toolName: String
 
@@ -112,7 +108,5 @@ struct BasicTool: ToolInterfaceProtocol {
     }
 
     func onUpdate() {
-        // Default implementation does nothing
     }
 }
-

@@ -11,7 +11,6 @@ import MetalKit
     func onDeselected()
     func onUpdate()
 
-    /// Returns the tool's current active state
     var isActive: Bool { get set }
 }
 

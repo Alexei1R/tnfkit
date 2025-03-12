@@ -6,7 +6,6 @@
 #include <metal_stdlib>
 using namespace metal;
 
-// Input vertex structure
 struct VertexIn {
   float3 position [[attribute(0)]];
   float3 normal [[attribute(1)]];
@@ -15,7 +14,6 @@ struct VertexIn {
   float3 bitangent [[attribute(4)]];
 };
 
-// Output vertex structure with selection state
 struct VertexOut {
   float4 position [[position]];
   float3 worldPosition;
@@ -25,7 +23,6 @@ struct VertexOut {
   float isSelected;
 };
 
-// Uniform data
 struct Uniforms {
   float4x4 modelMatrix;
   float4x4 viewMatrix;
@@ -34,7 +31,6 @@ struct Uniforms {
   float3 viewPosition;
 };
 
-// Vertex shader for selectable model
 vertex VertexOut vertex_selection(VertexIn in [[stage_in]],
                                   constant Uniforms &uniforms [[buffer(1)]],
                                   constant uint32_t *selectionStates
