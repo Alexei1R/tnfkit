@@ -6,7 +6,7 @@
 import Foundation
 
 final class RecordingManager: ObservableObject {
-    private var disk: Disk = Disk()
+    private var disk: FileStorage = FileStorage()
 
     @Published var savedAnimations: [CapturedAnimation] = []
 

@@ -1,3 +1,8 @@
+// Copyright (c) 2025 The Noughy Fox
+// 
+// This software is released under the MIT License.
+// https://opensource.org/licenses/MIT
+
 import Foundation
 import SwiftUI
 
@@ -49,7 +54,7 @@ enum ApplicationMode: String, CaseIterable, Identifiable {
         case .record:
             RecordLayerView()
         case .bone:
-            BoneAssign()
+            BoneAssignmentView()
         case .scan:
             VStack { Text("Coming soon!") }
         }

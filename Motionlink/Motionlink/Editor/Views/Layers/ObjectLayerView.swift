@@ -1,9 +1,7 @@
-//
-//  ObjectLayerView.swift
-//  Motionlink
-//
-//  Created by rusu alexei on 07.03.2025.
-//
+// Copyright (c) 2025 The Noughy Fox
+// 
+// This software is released under the MIT License.
+// https://opensource.org/licenses/MIT
 
 import Core
 import Engine

@@ -1,3 +1,8 @@
+// Copyright (c) 2025 The Noughy Fox
+// 
+// This software is released under the MIT License.
+// https://opensource.org/licenses/MIT
+
 //
 //  RecordLayerView.swift
 //  Motionlink
@@ -6,6 +11,7 @@
 //
 
 import Core
+import Foundation
 import Engine
 import Foundation
 import SwiftUI

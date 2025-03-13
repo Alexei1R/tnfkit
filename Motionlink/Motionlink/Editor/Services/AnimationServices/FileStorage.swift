@@ -1,13 +1,11 @@
-//
-//  Disk.swift
-//  Motionlink
-//
-//  Created by rusu alexei on 11.03.2025.
-//
+// Copyright (c) 2025 The Noughy Fox
+// 
+// This software is released under the MIT License.
+// https://opensource.org/licenses/MIT
 
 import Foundation
 
-struct Disk {
+struct FileStorage {
     let localRoot = FileManager.default.urls(
         for: .documentDirectory,
         in: .userDomainMask
