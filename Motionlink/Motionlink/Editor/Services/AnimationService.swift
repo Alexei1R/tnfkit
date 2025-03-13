@@ -10,7 +10,6 @@ import simd
 struct CapturedJoint: Codable, Identifiable {
     let id: Int
     let name: String
-    let path: String
     let transform: simd_float4x4
     let localTransform: simd_float4x4
     let parentIndex: Int?
@@ -18,14 +17,12 @@ struct CapturedJoint: Codable, Identifiable {
     init(
         id: Int,
         name: String,
-        path: String = "",
         transform: simd_float4x4,
         localTransform: simd_float4x4,
         parentIndex: Int? = nil
     ) {
         self.id = id
         self.name = name
-        self.path = path
         self.transform = transform
         self.localTransform = localTransform
         self.parentIndex = parentIndex

@@ -60,6 +60,14 @@ final class CameraViewModel: ObservableObject {
         // Save the animation with captured frames
         animRecorder.saveAnimation(capturedAnimation)
 
+        capturedAnimation = CapturedAnimation(
+            name: "default",
+            frames: [],
+            duration: 0,
+            frameRate: 60.0,
+            recordingDate: Date()
+        )
+
         print(
             "===== Animation saved: \(name) with \(capturedAnimation.frames.count) frames and \(String(format: "%.2f", capturedAnimation.duration))s duration ====="
         )

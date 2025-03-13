@@ -10,6 +10,7 @@ enum ApplicationMode: String, CaseIterable, Identifiable {
     case object = "Obj"
     case record = "Record"
     case scan = "Scan"
+    case bone = "Bone"
 
     var id: String { self.rawValue }
 
@@ -21,6 +22,8 @@ enum ApplicationMode: String, CaseIterable, Identifiable {
             return "record.circle"
         case .scan:
             return "compass.drawing"
+        case .bone:
+            return "skew"
         }
     }
 
@@ -32,6 +35,8 @@ enum ApplicationMode: String, CaseIterable, Identifiable {
             return "Record"
         case .scan:
             return "Scan"
+        case .bone:
+            return "Bone"
         }
     }
 
@@ -43,6 +48,8 @@ enum ApplicationMode: String, CaseIterable, Identifiable {
             ObjectLayerView()
         case .record:
             RecordLayerView()
+        case .bone:
+            BoneAssign()
         case .scan:
             VStack { Text("Coming soon!") }
         }

@@ -19,6 +19,9 @@ struct RecordLayerView: View {
     
     var body: some View {
         ZStack {
+            // Black background to ensure we have black bars
+            Color.black.edgesIgnoringSafeArea(.all)
+            
             // AR body tracking view with character
 #if os(iOS) && !targetEnvironment(macCatalyst)
             ARBodyTrackingView(
@@ -34,7 +37,7 @@ struct RecordLayerView: View {
             
 #else
             // Fallback for macOS or platforms without ARKit body tracking
-            Color.gray
+            Color.black
                 .edgesIgnoringSafeArea(.all)
                 .overlay(
                     VStack(spacing: 12) {
@@ -71,6 +74,7 @@ struct RecordLayerView: View {
     }
 }
 
+// Rest of the RecordLayerView implementation remains the same
 private extension RecordLayerView {
     func createRecordButton() -> some View {
         Button(action: {

@@ -8,12 +8,13 @@ struct ARBodyTrackingView: UIViewRepresentable {
     var onFrame: ((ARFrame) -> Void)?
     var characterName: String = "robot" // Default character model
     
-    func makeUIView(context: Context) -> ARView {
-        let arView = ARView(frame: .zero)
+    func makeUIView(context: Context) -> ARViewContainer {
+        let arViewContainer = ARViewContainer(frame: .zero)
+        let arView = arViewContainer.arView
         
         guard ARBodyTrackingConfiguration.isSupported else {
             print("Body tracking is not supported on this device")
-            return arView
+            return arViewContainer
         }
         
         // Create body tracking configuration
@@ -30,10 +31,10 @@ struct ARBodyTrackingView: UIViewRepresentable {
         // Run the session
         arView.session.run(configuration)
         
-        return arView
+        return arViewContainer
     }
     
-    func updateUIView(_ uiView: ARView, context: Context) {
+    func updateUIView(_ uiView: ARViewContainer, context: Context) {
         context.coordinator.onBodyTracking = onBodyTracking
         context.coordinator.onFrame = onFrame
         context.coordinator.characterName = characterName
@@ -49,6 +50,83 @@ struct ARBodyTrackingView: UIViewRepresentable {
     
     func makeCoordinator() -> Coordinator {
         Coordinator(onBodyTracking: onBodyTracking, onFrame: onFrame)
+    }
+    
+    // Custom ARView container to handle aspect ratio
+    class ARViewContainer: UIView {
+        let arView: ARView
+        
+        override init(frame: CGRect) {
+            self.arView = ARView(frame: .zero)
+            super.init(frame: frame)
+            
+            // Add ARView as a subview
+            addSubview(arView)
+            
+            // Configure AR view appearance
+            arView.translatesAutoresizingMaskIntoConstraints = false
+            
+            // Apply black background to container
+            backgroundColor = .black
+            
+            // Setup constraints to center AR view while maintaining aspect ratio
+            NSLayoutConstraint.activate([
+                // Center AR view
+                arView.centerXAnchor.constraint(equalTo: centerXAnchor),
+                arView.centerYAnchor.constraint(equalTo: centerYAnchor),
+                
+                // Constrain width and height while maintaining aspect ratio
+                arView.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor),
+                arView.heightAnchor.constraint(lessThanOrEqualTo: heightAnchor),
+                
+                // Aspect ratio constraint will be added dynamically when the camera feed begins
+            ])
+        }
+        
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+        
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            updateARViewLayout()
+        }
+        
+        // Adjust the AR view layout to respect aspect ratio
+        private func updateARViewLayout() {
+            // Default aspect ratio (4:3) if we haven't determined from camera yet
+            var aspectRatio: CGFloat = 4.0/3.0
+            
+            // Get actual camera aspect ratio if available
+            if let camera = arView.session.currentFrame?.camera {
+                let resolution = camera.imageResolution
+                aspectRatio = CGFloat(resolution.width) / CGFloat(resolution.height)
+            }
+            
+            let containerSize = bounds.size
+            let containerAspect = containerSize.width / containerSize.height
+            
+            // Calculate dimensions to fit camera feed while preserving aspect ratio
+            if aspectRatio > containerAspect {
+                // Camera is wider than container - fit to width with black bars on top/bottom
+                let newHeight = containerSize.width / aspectRatio
+                arView.frame = CGRect(
+                    x: 0,
+                    y: (containerSize.height - newHeight) / 2,
+                    width: containerSize.width,
+                    height: newHeight
+                )
+            } else {
+                // Camera is taller than container - fit to height with black bars on sides
+                let newWidth = containerSize.height * aspectRatio
+                arView.frame = CGRect(
+                    x: (containerSize.width - newWidth) / 2,
+                    y: 0,
+                    width: newWidth,
+                    height: containerSize.height
+                )
+            }
+        }
     }
     
     class Coordinator: NSObject, ARSessionDelegate {
@@ -133,6 +211,11 @@ struct ARBodyTrackingView: UIViewRepresentable {
             // Process frame data
             DispatchQueue.main.async {
                 self.onFrame?(frame)
+                
+                // If this is our parent view container, update the layout
+                if let arView = self.arView, let container = arView.superview as? ARViewContainer {
+                    container.setNeedsLayout()
+                }
             }
         }
         
