@@ -9,7 +9,7 @@ struct EditorView: View {
     @StateObject var toolSelector = ToolSelector()
     @State private var rightPanelWidth: CGFloat = 0
     
-    let layersWidthPercentage: ClosedRange<CGFloat> = 0.15...0.50
+    let layersWidthPercentage: ClosedRange<CGFloat> = 0.33...0.50
 
     var body: some View {
         GeometryReader { geometry in

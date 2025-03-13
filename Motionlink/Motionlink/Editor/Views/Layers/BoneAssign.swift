@@ -7,26 +7,68 @@
 
 import Foundation
 import SwiftUI
+import simd
+
+struct BoneHierarchyItem: Identifiable {
+    let id: Int
+    let joint: CapturedJoint
+    let depth: Int
+    let isLastInBranch: Bool
+    let isRootBone: Bool
+    let isIndexReset: Bool
+    
+    var dotColor: Color {
+        if isIndexReset {
+            return .orange
+        } else if isRootBone {
+            return .red
+        } else if depth >= 3 {
+            return .blue
+        } else {
+            return .green
+        }
+    }
+}
 
 class BoneAssignViewModel: ObservableObject {
     @Published var selectedAnimation: CapturedAnimation?
     @Published var showAnimationModal = false
     @Published var selectedBoneIndex: Int?
     @Published var animations: [CapturedAnimation] = []
+    @Published var isLoading = false
+    @Published var hierarchyItems: [BoneHierarchyItem] = []
     
     private let recordingManager = RecordingManager()
     
     init() {
-        loadAnimations()
+        DispatchQueue.main.async {
+            self.loadAnimations()
+        }
     }
     
     func loadAnimations() {
-        recordingManager.loadSavedAnimations()
-        self.animations = recordingManager.savedAnimations
+        isLoading = true
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            self.recordingManager.loadSavedAnimations()
+            
+            DispatchQueue.main.async {
+                self.animations = self.recordingManager.savedAnimations
+                self.isLoading = false
+                
+                if let animation = self.selectedAnimation {
+                    self.createHierarchy(from: animation)
+                }
+                
+                if self.selectedAnimation == nil && !self.animations.isEmpty {
+                    self.showAnimationModal = true
+                }
+            }
+        }
     }
     
-    func getBonesFromAnimation(_ animation: CapturedAnimation?) -> [CapturedJoint] {
-        guard let firstFrame = animation?.frames.first else { return [] }
+    var bones: [CapturedJoint] {
+        guard let firstFrame = selectedAnimation?.frames.first else { return [] }
         return firstFrame.joints
     }
     
@@ -34,10 +76,61 @@ class BoneAssignViewModel: ObservableObject {
         self.selectedAnimation = animation
         self.selectedBoneIndex = nil
         self.showAnimationModal = false
+        createHierarchy(from: animation)
     }
     
     func selectBone(_ index: Int) {
         self.selectedBoneIndex = index
+    }
+    
+    func createHierarchy(from animation: CapturedAnimation) {
+        guard let firstFrame = animation.frames.first else {
+            hierarchyItems = []
+            return
+        }
+        
+        let joints = firstFrame.joints
+        var hierarchyItems: [BoneHierarchyItem] = []
+        
+        let rootBones = joints.enumerated()
+            .filter { $0.element.parentIndex == nil || $0.element.parentIndex == -1 }
+            .map { $0.offset }
+        
+        var lastParentIndex = -1
+        
+        for i in 0..<joints.count {
+            let joint = joints[i]
+            let parentIndex = joint.parentIndex ?? -1
+            
+            var depth = 0
+            var currentParent = parentIndex
+            var visited = Set<Int>()
+            
+            while currentParent >= 0 && currentParent < joints.count && !visited.contains(currentParent) && depth < 10 {
+                depth += 1
+                visited.insert(currentParent)
+                currentParent = joints[currentParent].parentIndex ?? -1
+            }
+            
+            let isIndexReset = parentIndex >= 0 && i > 0 &&
+                              (parentIndex < i - 5 ||
+                               (lastParentIndex > 0 && parentIndex < lastParentIndex - 5))
+            
+            hierarchyItems.append(BoneHierarchyItem(
+                id: i,
+                joint: joint,
+                depth: min(depth, 10),
+                isLastInBranch: !joints.contains(where: { $0.parentIndex == i }),
+                isRootBone: parentIndex < 0,
+                isIndexReset: isIndexReset
+            ))
+            
+            if parentIndex >= 0 {
+                lastParentIndex = parentIndex
+            }
+        }
+        
+        self.hierarchyItems = hierarchyItems
     }
 }
 
@@ -46,9 +139,7 @@ struct BoneAssign: View {
     
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            // Main content
             VStack(spacing: 6) {
-                // Bones header (simplified)
                 if let animation = viewModel.selectedAnimation {
                     HStack {
                         Text("Bones in \"\(animation.name)\"")
@@ -58,7 +149,7 @@ struct BoneAssign: View {
                         
                         Spacer()
                         
-                        Text("\(viewModel.getBonesFromAnimation(animation).count)")
+                        Text("\(viewModel.bones.count)")
                             .font(.system(size: 11))
                             .foregroundColor(.gray)
                             .padding(.horizontal, 6)
@@ -71,10 +162,8 @@ struct BoneAssign: View {
                     .padding(.horizontal, 10)
                     .padding(.top, 10)
                     
-                    // Bones list view
-                    bonesListView
+                    BoneHierarchyView(viewModel: viewModel)
                 } else {
-                    // No animation selected view
                     VStack(spacing: 12) {
                         Image(systemName: "cube.transparent")
                             .font(.system(size: 28))
@@ -83,14 +172,39 @@ struct BoneAssign: View {
                         Text("No animation selected")
                             .font(.system(size: 13))
                             .foregroundColor(.gray)
+                        
+                        if viewModel.isLoading {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .blue))
+                                .padding(.top, 8)
+                        } else {
+                            Button(action: {
+                                viewModel.showAnimationModal = true
+                            }) {
+                                Text("Select Animation")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 6)
+                                    .background(Color.blue)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(6)
+                            }
+                            .padding(.top, 12)
+                        }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(.bottom, 20)
+                    .onAppear {
+                        if viewModel.selectedAnimation == nil && !viewModel.isLoading {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                viewModel.showAnimationModal = true
+                            }
+                        }
+                    }
                 }
             }
             .padding(.horizontal, 2)
             
-            // Floating animation select button (now just an icon)
             Button(action: {
                 viewModel.showAnimationModal = true
             }) {
@@ -105,67 +219,152 @@ struct BoneAssign: View {
                     .shadow(color: Color.black.opacity(0.3), radius: 3)
             }
             .padding(12)
+            .padding(.trailing, 5)
             
-            // Animation selection modal
             if viewModel.showAnimationModal {
-                animationSelectionModal
+                AnimationSelectionModal(viewModel: viewModel)
             }
         }
     }
+}
+
+struct BoneHierarchyView: View {
+    @ObservedObject var viewModel: BoneAssignViewModel
     
-    // MARK: - View Components
-    
-    private var bonesListView: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if let animation = viewModel.selectedAnimation {
-                // Bones list
-                ScrollView {
-                    LazyVStack(spacing: 1) {
-                        ForEach(Array(viewModel.getBonesFromAnimation(animation).enumerated()), id: \.element.id) { index, joint in
-                            BoneRow(
-                                joint: joint,
-                                isSelected: viewModel.selectedBoneIndex == index,
-                                onSelect: {
-                                    viewModel.selectBone(index)
-                                }
-                            )
-                        }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 1) {
+                    ForEach(viewModel.hierarchyItems) { item in
+                        HierarchyBoneRow(
+                            hierarchyItem: item,
+                            isSelected: viewModel.selectedBoneIndex == item.id,
+                            onSelect: {
+                                viewModel.selectBone(item.id)
+                            }
+                        )
                     }
-                    .padding(.vertical, 2)
                 }
+                .padding(.vertical, 2)
+            }
+            
+            if let selectedIndex = viewModel.selectedBoneIndex,
+               selectedIndex < viewModel.bones.count {
                 
-                // Bottom info
-                if let selectedIndex = viewModel.selectedBoneIndex,
-                   let joints = animation.frames.first?.joints,
-                   selectedIndex < joints.count {
-                    let joint = joints[selectedIndex]
+                let joint = viewModel.bones[selectedIndex]
+                
+                HStack(spacing: 8) {
+                    Button(action: {
+                    }) {
+                        Text("Assign")
+                            .font(.system(size: 11, weight: .medium))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(4)
+                    }
                     
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Selected: \(joint.name)")
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(joint.name)
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.white)
                         
-                        Text("Ready for vertex assignment")
-                            .font(.system(size: 11))
-                            .foregroundColor(.gray)
+                        if let parentIndex = joint.parentIndex,
+                           parentIndex >= 0,
+                           parentIndex < viewModel.bones.count {
+                            Text("Parent: \(viewModel.bones[parentIndex].name)")
+                                .font(.system(size: 10))
+                                .foregroundColor(.gray)
+                        } else {
+                            Text("Root bone")
+                                .font(.system(size: 10))
+                                .foregroundColor(.gray)
+                        }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.blue.opacity(0.1))
-                    )
-                    .padding(.horizontal, 10)
-                    .padding(.bottom, 8)
+                    
+                    Spacer()
                 }
+                .padding(8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.black.opacity(0.3))
+                )
+                .padding(.horizontal, 10)
+                .padding(.bottom, 8)
             }
         }
     }
+}
+
+struct HierarchyBoneRow: View {
+    let hierarchyItem: BoneHierarchyItem
+    let isSelected: Bool
+    let onSelect: () -> Void
     
-    // Modal overlay with animation selection
-    private var animationSelectionModal: some View {
+    private let tabWidth: CGFloat = 8
+    
+    private var effectiveDepth: Int {
+        min(hierarchyItem.depth, 5)
+    }
+    
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: 0) {
+                Rectangle()
+                    .fill(Color.clear)
+                    .frame(width: 2)
+                
+                if effectiveDepth > 0 {
+                    HStack(spacing: 0) {
+                        ForEach(0..<effectiveDepth, id: \.self) { _ in
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.3))
+                                .frame(width: 1)
+                                .padding(.leading, tabWidth - 1)
+                        }
+                    }
+                }
+                
+                Circle()
+                    .fill(hierarchyItem.dotColor)
+                    .frame(width: 6, height: 6)
+                    .padding(.trailing, 4)
+                    .padding(.leading, 2)
+                
+                Text(hierarchyItem.joint.name)
+                    .font(.system(size: 11))
+                    .foregroundColor(isSelected ? .white : .gray)
+                    .lineLimit(1)
+                
+                Spacer()
+                
+                if let parentIndex = hierarchyItem.joint.parentIndex,
+                   parentIndex >= 0 {
+                    Text("↑\(parentIndex)")
+                        .font(.system(size: 9))
+                        .foregroundColor(hierarchyItem.isIndexReset ? .orange : .gray.opacity(0.7))
+                        .padding(.trailing, 30)
+                }
+            }
+            .padding(.vertical, 4)
+            .padding(.leading, 6)
+            .padding(.trailing, 4)
+            .background(
+                isSelected ? Color.blue.opacity(0.2) : Color.clear
+            )
+            .cornerRadius(4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct AnimationSelectionModal: View {
+    @ObservedObject var viewModel: BoneAssignViewModel
+    
+    var body: some View {
         ZStack {
-            // Background overlay
             Color.black.opacity(0.7)
                 .edgesIgnoringSafeArea(.all)
                 .onTapGesture {
@@ -174,12 +373,10 @@ struct BoneAssign: View {
                     }
                 }
             
-            // Modal content
-            VStack(spacing: 16) {
-                // Header
+            VStack(spacing: 8) {
                 HStack {
                     Text("Select Animation")
-                        .font(.headline)
+                        .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.white)
                     
                     Spacer()
@@ -190,83 +387,41 @@ struct BoneAssign: View {
                         }
                     }) {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 20))
+                            .font(.system(size: 16))
                             .foregroundColor(.gray)
                     }
                 }
-                .padding(.top, 16)
-                .padding(.horizontal, 16)
+                .padding(.top, 10)
+                .padding(.horizontal, 12)
                 
                 Divider()
                     .background(Color.gray.opacity(0.3))
                     .padding(.horizontal, 8)
                 
-                if viewModel.animations.isEmpty {
-                    // No animations view
-                    VStack(spacing: 12) {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.system(size: 28))
-                            .foregroundColor(.yellow)
-                            .padding(.top, 20)
-                        
-                        Text("No animations found")
-                            .font(.system(size: 16))
-                            .foregroundColor(.white)
-                        
-                        Text("Record an animation first")
-                            .font(.system(size: 14))
-                            .foregroundColor(.gray)
-                            .padding(.top, 2)
-                        
-                        Button(action: {
-                            viewModel.loadAnimations()
-                        }) {
-                            Text("Refresh")
-                                .font(.system(size: 14, weight: .medium))
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(Color.blue)
-                                )
-                                .foregroundColor(.white)
-                        }
-                        .padding(.top, 10)
-                        .padding(.bottom, 20)
-                    }
+                if viewModel.isLoading {
+                    AnimationLoadingView()
+                } else if viewModel.animations.isEmpty {
+                    EmptyAnimationsView(onRefresh: { viewModel.loadAnimations() })
                 } else {
-                    // Animation list
-                    ScrollView {
-                        LazyVStack(spacing: 8) {
-                            ForEach(viewModel.animations) { animation in
-                                AnimationRow(
-                                    animation: animation,
-                                    isSelected: viewModel.selectedAnimation?.id == animation.id,
-                                    onSelect: {
-                                        viewModel.selectAnimation(animation)
-                                    }
-                                )
-                                .padding(.horizontal, 12)
-                            }
-                        }
-                        .padding(.vertical, 8)
-                    }
-                    .frame(maxHeight: 300)
+                    AnimationsScrollView(
+                        animations: viewModel.animations,
+                        selectedAnimation: viewModel.selectedAnimation,
+                        onSelectAnimation: { viewModel.selectAnimation($0) }
+                    )
                     
-                    // Bottom buttons
-                    HStack(spacing: 12) {
+                    HStack(spacing: 8) {
                         Button(action: {
                             withAnimation {
                                 viewModel.showAnimationModal = false
                             }
                         }) {
                             Text("Cancel")
-                                .font(.system(size: 14, weight: .medium))
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
+                                .font(.system(size: 11, weight: .medium))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 4)
                                 .frame(maxWidth: .infinity)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 8)
+                                    RoundedRectangle(cornerRadius: 6)
                                         .fill(Color.gray.opacity(0.3))
                                 )
                                 .foregroundColor(.white)
@@ -276,135 +431,168 @@ struct BoneAssign: View {
                             viewModel.loadAnimations()
                         }) {
                             Text("Refresh")
-                                .font(.system(size: 14, weight: .medium))
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
+                                .font(.system(size: 11, weight: .medium))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 4)
                                 .frame(maxWidth: .infinity)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 8)
+                                    RoundedRectangle(cornerRadius: 6)
                                         .fill(Color.blue)
                                 )
                                 .foregroundColor(.white)
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 16)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 10)
                 }
             }
             .background(
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: 12)
                     .fill(Color.black.opacity(0.95))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: 12)
                     .stroke(Color.white.opacity(0.1), lineWidth: 1)
             )
-            .frame(width: 300)
+            .frame(width: 260)
             .shadow(color: Color.black.opacity(0.5), radius: 20)
         }
         .transition(.opacity)
     }
 }
 
-struct AnimationRow: View {
+struct AnimationLoadingView: View {
+    var body: some View {
+        VStack(spacing: 10) {
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle(tint: .blue))
+                .scaleEffect(0.8)
+            
+            Text("Loading animations...")
+                .foregroundColor(.gray)
+                .font(.system(size: 11))
+            
+            Spacer()
+                .frame(height: 10)
+        }
+        .frame(height: 70)
+        .padding(.vertical, 10)
+    }
+}
+
+struct EmptyAnimationsView: View {
+    let onRefresh: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 20))
+                .foregroundColor(.yellow)
+                .padding(.top, 10)
+            
+            Text("No animations found")
+                .font(.system(size: 12))
+                .foregroundColor(.white)
+            
+            Text("Record an animation first")
+                .font(.system(size: 10))
+                .foregroundColor(.gray)
+                .padding(.top, 1)
+            
+            Button(action: onRefresh) {
+                Text("Refresh")
+                    .font(.system(size: 11, weight: .medium))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.blue)
+                    )
+                    .foregroundColor(.white)
+            }
+            .padding(.top, 6)
+            .padding(.bottom, 10)
+        }
+    }
+}
+
+struct AnimationsScrollView: View {
+    let animations: [CapturedAnimation]
+    let selectedAnimation: CapturedAnimation?
+    let onSelectAnimation: (CapturedAnimation) -> Void
+    
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: 2) {
+                ForEach(animations) { animation in
+                    AnimationRowItem(
+                        animation: animation,
+                        isSelected: selectedAnimation?.id == animation.id,
+                        onSelect: { onSelectAnimation(animation) }
+                    )
+                    .padding(.horizontal, 8)
+                }
+            }
+            .padding(.vertical, 4)
+        }
+        .frame(maxHeight: 180)
+    }
+}
+
+struct AnimationRowItem: View {
     let animation: CapturedAnimation
     let isSelected: Bool
     let onSelect: () -> Void
     
     var body: some View {
         Button(action: onSelect) {
-            HStack(spacing: 10) {
-                // Selection indicator
-                Circle()
-                    .fill(isSelected ? Color.blue : Color.clear)
-                    .frame(width: 12, height: 12)
-                    .overlay(
-                        Circle()
-                            .stroke(isSelected ? Color.blue : Color.gray.opacity(0.5), lineWidth: 1)
-                    )
-                
-                // Animation info
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(animation.name)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white)
-                    
-                    HStack(spacing: 8) {
-                        Text("\(animation.frames.count) frames")
-                            .font(.system(size: 11))
-                            .foregroundColor(.gray)
-                        
-                        Text("•")
-                            .font(.system(size: 11))
-                            .foregroundColor(.gray.opacity(0.5))
-                        
-                        Text("\(String(format: "%.1f", animation.duration))s")
-                            .font(.system(size: 11))
-                            .foregroundColor(.gray)
-                    }
-                }
-                
-                Spacer()
-                
-                Image(systemName: "checkmark")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.blue)
-                    .opacity(isSelected ? 1 : 0)
-            }
-            .padding(10)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color.blue.opacity(0.15) : Color.clear)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.blue.opacity(0.4) : Color.gray.opacity(0.2), lineWidth: 1)
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
-
-struct BoneRow: View {
-    let joint: CapturedJoint
-    let isSelected: Bool
-    let onSelect: () -> Void
-    
-    var body: some View {
-        Button(action: onSelect) {
-            HStack(spacing: 8) {
-                // Selection indicator
+            HStack(spacing: 6) {
                 Circle()
                     .fill(isSelected ? Color.blue : Color.clear)
                     .frame(width: 8, height: 8)
                     .overlay(
                         Circle()
-                            .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+                            .stroke(isSelected ? Color.blue : Color.gray.opacity(0.5), lineWidth: 1)
                     )
                 
-                // Joint name
-                Text(joint.name)
-                    .font(.system(size: 12))
-                    .foregroundColor(isSelected ? .white : .gray)
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(animation.name)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(isSelected ? .white : .gray)
+                    
+                    HStack(spacing: 4) {
+                        Text("\(animation.frames.count)f")
+                            .font(.system(size: 9))
+                            .foregroundColor(isSelected ? .white.opacity(0.8) : .gray)
+                        
+                        Text("•")
+                            .font(.system(size: 8))
+                            .foregroundColor(isSelected ? .white.opacity(0.5) : .gray.opacity(0.5))
+                        
+                        Text("\(String(format: "%.1f", animation.duration))s")
+                            .font(.system(size: 9))
+                            .foregroundColor(isSelected ? .white.opacity(0.8) : .gray)
+                    }
+                }
                 
                 Spacer()
                 
-                // Parent info (more compact)
-                if let parentIndex = joint.parentIndex {
-                    Text("P:\(parentIndex)")
-                        .font(.system(size: 10))
-                        .foregroundColor(.gray.opacity(0.7))
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white)
                 }
             }
-            .padding(.vertical, 6)
-            .padding(.horizontal, 8)
-            .padding(.trailing, 4) // Added small padding on the right side
+            .padding(.vertical, 4)
+            .padding(.horizontal, 6)
             .background(
-                isSelected ? Color.blue.opacity(0.2) : Color.clear
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(isSelected ? Color.blue.opacity(0.25) : Color.clear)
             )
-            .cornerRadius(4)
-            .contentShape(Rectangle())
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(isSelected ? Color.blue.opacity(0.4) : Color.gray.opacity(0.15), lineWidth: 1)
+            )
         }
         .buttonStyle(PlainButtonStyle())
     }

@@ -1,6 +1,4 @@
 // Copyright (c) 2025 The Noughy Fox
-// Created by: Alexei1R
-// Date: 2025-03-06
 //
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
@@ -171,7 +169,7 @@ public class Renderer {
                 } else {
                     Log.error("Missing selection pipeline for SelectionArea")
                 }
-                break  
+                break
             }
         }
 
@@ -191,4 +189,3 @@ public class Renderer {
         return selectionRenderPass?.getSelectionTexture()
     }
 }
-
