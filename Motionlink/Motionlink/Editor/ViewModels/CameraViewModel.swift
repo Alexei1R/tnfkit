@@ -1,14 +1,13 @@
 // Copyright (c) 2025 The Noughy Fox
-// 
+//
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
-
-
 
 import ARKit
 import Combine
 import Foundation
 import MetalKit
+import tnfkit
 
 final class CameraViewModel: ObservableObject {
     @Published var isRecording: Bool = false

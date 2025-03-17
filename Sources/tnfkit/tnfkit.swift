@@ -3,8 +3,6 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-import Core
-import Engine
 import Foundation
 import MetalKit
 import SwiftUI
@@ -20,6 +18,8 @@ public final class TNFEngine {
 
     //NOTE: Renderer stuff
     private let viewer: ViewerManager
+
+    private var time = Time()
 
     public init?() {
         guard let device = MTLCreateSystemDefaultDevice() else {
@@ -59,8 +59,10 @@ public final class TNFEngine {
     }
 
     public func update(view: MTKView) {
+        time.update()
+
         toolManager.updateActiveTool()
-        moduleStack.updateAll(dt: 1.0 / 60.0)
+        moduleStack.updateAll(dt: Float(time.deltaTimeFloat))
         viewer.update(dt: 1 / 60, view: view)
     }
 

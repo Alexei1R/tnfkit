@@ -3,7 +3,6 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-import Core
 import Metal
 
 public class MeshComponent: Component {

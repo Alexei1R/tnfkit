@@ -1,5 +1,5 @@
 // Copyright (c) 2025 The Noughy Fox
-// 
+//
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
@@ -62,7 +62,7 @@ class ToolService {
                 icon: "scribble.variable",
                 group: .selection,
                 engineTool: .select,
-                supportedModes: [.object]
+                supportedModes: [.object , .bone]
             )
         )
         
@@ -73,7 +73,7 @@ class ToolService {
                 icon: "move.3d",
                 group: .manipulation,
                 engineTool: .control,
-                supportedModes: [.object]
+                supportedModes: [.object, .bone]
             )
         )
         
@@ -99,6 +99,6 @@ class ToolService {
                 supportedModes: [.record]
             )
         )
-
+        
     }
 }

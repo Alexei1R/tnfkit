@@ -3,9 +3,6 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-import Core
-import Engine
-
 public final class Scene {
     private let registry: Registry
     public var namedEntities: [String: Entity] = [:]

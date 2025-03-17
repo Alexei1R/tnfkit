@@ -3,8 +3,6 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-import Core
-
 public final class SceneManager: @unchecked Sendable {
     public static let shared = SceneManager()
     private var _scene: Scene?

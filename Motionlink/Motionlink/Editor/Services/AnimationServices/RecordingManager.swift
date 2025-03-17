@@ -4,6 +4,7 @@
 // https://opensource.org/licenses/MIT
 
 import Foundation
+import tnfkit
 
 final class RecordingManager: ObservableObject {
     private var disk: FileStorage = FileStorage()

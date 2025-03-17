@@ -1,15 +1,16 @@
 // Copyright (c) 2025 The Noughy Fox
-// 
+//
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
 import Foundation
 import SwiftUI
 import simd
+import tnfkit
 
 struct BoneAssignmentView: View {
     @StateObject private var viewModel = BoneViewModel()
-    
+
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             VStack(spacing: 6) {
@@ -19,9 +20,9 @@ struct BoneAssignmentView: View {
                             .font(.system(size: 13, weight: .medium))
                             .foregroundColor(.white)
                             .lineLimit(1)
-                        
+
                         Spacer()
-                        
+
                         Text("\(viewModel.bones.count)")
                             .font(.system(size: 11))
                             .foregroundColor(.gray)
@@ -34,18 +35,18 @@ struct BoneAssignmentView: View {
                     }
                     .padding(.horizontal, 10)
                     .padding(.top, 10)
-                    
+
                     BoneHierarchyView(viewModel: viewModel)
                 } else {
                     VStack(spacing: 12) {
                         Image(systemName: "cube.transparent")
                             .font(.system(size: 28))
                             .foregroundColor(.gray)
-                        
+
                         Text("No animation selected")
                             .font(.system(size: 13))
                             .foregroundColor(.gray)
-                        
+
                         if viewModel.isLoading {
                             ProgressView()
                                 .progressViewStyle(CircularProgressViewStyle(tint: .blue))
@@ -77,7 +78,7 @@ struct BoneAssignmentView: View {
                 }
             }
             .padding(.horizontal, 2)
-            
+
             Button(action: {
                 viewModel.showAnimationModal = true
             }) {
@@ -93,7 +94,7 @@ struct BoneAssignmentView: View {
             }
             .padding(12)
             .padding(.trailing, 5)
-            
+
             if viewModel.showAnimationModal {
                 AnimationSelectionModal(viewModel: viewModel)
             }
@@ -103,7 +104,7 @@ struct BoneAssignmentView: View {
 
 struct BoneHierarchyView: View {
     @ObservedObject var viewModel: BoneViewModel
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             ScrollView {
@@ -120,12 +121,13 @@ struct BoneHierarchyView: View {
                 }
                 .padding(.vertical, 2)
             }
-            
+
             if let selectedIndex = viewModel.selectedBoneIndex,
-               selectedIndex < viewModel.bones.count {
-                
+                selectedIndex < viewModel.bones.count
+            {
+
                 let joint = viewModel.bones[selectedIndex]
-                
+
                 HStack(spacing: 8) {
                     Button(action: {
                     }) {
@@ -137,15 +139,16 @@ struct BoneHierarchyView: View {
                             .foregroundColor(.white)
                             .cornerRadius(4)
                     }
-                    
+
                     VStack(alignment: .leading, spacing: 2) {
                         Text(joint.name)
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.white)
-                        
+
                         if let parentIndex = joint.parentIndex,
-                           parentIndex >= 0,
-                           parentIndex < viewModel.bones.count {
+                            parentIndex >= 0,
+                            parentIndex < viewModel.bones.count
+                        {
                             Text("Parent: \(viewModel.bones[parentIndex].name)")
                                 .font(.system(size: 10))
                                 .foregroundColor(.gray)
@@ -155,7 +158,7 @@ struct BoneHierarchyView: View {
                                 .foregroundColor(.gray)
                         }
                     }
-                    
+
                     Spacer()
                 }
                 .padding(8)
@@ -174,20 +177,20 @@ struct HierarchyBoneRow: View {
     let hierarchyItem: BoneHierarchyItem
     let isSelected: Bool
     let onSelect: () -> Void
-    
+
     private let tabWidth: CGFloat = 8
-    
+
     private var effectiveDepth: Int {
         min(hierarchyItem.depth, 5)
     }
-    
+
     var body: some View {
         Button(action: onSelect) {
             HStack(spacing: 0) {
                 Rectangle()
                     .fill(Color.clear)
                     .frame(width: 2)
-                
+
                 if effectiveDepth > 0 {
                     HStack(spacing: 0) {
                         ForEach(0..<effectiveDepth, id: \.self) { _ in
@@ -198,22 +201,23 @@ struct HierarchyBoneRow: View {
                         }
                     }
                 }
-                
+
                 Circle()
                     .fill(hierarchyItem.dotColor)
                     .frame(width: 6, height: 6)
                     .padding(.trailing, 4)
                     .padding(.leading, 2)
-                
+
                 Text(hierarchyItem.joint.name)
                     .font(.system(size: 11))
                     .foregroundColor(isSelected ? .white : .gray)
                     .lineLimit(1)
-                
+
                 Spacer()
-                
+
                 if let parentIndex = hierarchyItem.joint.parentIndex,
-                   parentIndex >= 0 {
+                    parentIndex >= 0
+                {
                     Text("↑\(parentIndex)")
                         .font(.system(size: 9))
                         .foregroundColor(hierarchyItem.isIndexReset ? .orange : .gray.opacity(0.7))
@@ -235,7 +239,7 @@ struct HierarchyBoneRow: View {
 
 struct AnimationSelectionModal: View {
     @ObservedObject var viewModel: BoneViewModel
-    
+
     var body: some View {
         ZStack {
             Color.black.opacity(0.7)
@@ -245,15 +249,15 @@ struct AnimationSelectionModal: View {
                         viewModel.showAnimationModal = false
                     }
                 }
-            
+
             VStack(spacing: 8) {
                 HStack {
                     Text("Select Animation")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.white)
-                    
+
                     Spacer()
-                    
+
                     Button(action: {
                         withAnimation {
                             viewModel.showAnimationModal = false
@@ -266,11 +270,11 @@ struct AnimationSelectionModal: View {
                 }
                 .padding(.top, 10)
                 .padding(.horizontal, 12)
-                
+
                 Divider()
                     .background(Color.gray.opacity(0.3))
                     .padding(.horizontal, 8)
-                
+
                 if viewModel.isLoading {
                     AnimationLoadingView()
                 } else if viewModel.animations.isEmpty {
@@ -281,7 +285,7 @@ struct AnimationSelectionModal: View {
                         selectedAnimation: viewModel.selectedAnimation,
                         onSelectAnimation: { viewModel.selectAnimation($0) }
                     )
-                    
+
                     HStack(spacing: 8) {
                         Button(action: {
                             withAnimation {
@@ -299,7 +303,7 @@ struct AnimationSelectionModal: View {
                                 )
                                 .foregroundColor(.white)
                         }
-                        
+
                         Button(action: {
                             viewModel.loadAnimations()
                         }) {
@@ -340,11 +344,11 @@ struct AnimationLoadingView: View {
             ProgressView()
                 .progressViewStyle(CircularProgressViewStyle(tint: .blue))
                 .scaleEffect(0.8)
-            
+
             Text("Loading animations...")
                 .foregroundColor(.gray)
                 .font(.system(size: 11))
-            
+
             Spacer()
                 .frame(height: 10)
         }
@@ -355,23 +359,23 @@ struct AnimationLoadingView: View {
 
 struct EmptyAnimationsView: View {
     let onRefresh: () -> Void
-    
+
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 20))
                 .foregroundColor(.yellow)
                 .padding(.top, 10)
-            
+
             Text("No animations found")
                 .font(.system(size: 12))
                 .foregroundColor(.white)
-            
+
             Text("Record an animation first")
                 .font(.system(size: 10))
                 .foregroundColor(.gray)
                 .padding(.top, 1)
-            
+
             Button(action: onRefresh) {
                 Text("Refresh")
                     .font(.system(size: 11, weight: .medium))
@@ -393,7 +397,7 @@ struct AnimationsScrollView: View {
     let animations: [CapturedAnimation]
     let selectedAnimation: CapturedAnimation?
     let onSelectAnimation: (CapturedAnimation) -> Void
-    
+
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 2) {
@@ -416,7 +420,7 @@ struct AnimationRowItem: View {
     let animation: CapturedAnimation
     let isSelected: Bool
     let onSelect: () -> Void
-    
+
     var body: some View {
         Button(action: onSelect) {
             HStack(spacing: 6) {
@@ -427,32 +431,30 @@ struct AnimationRowItem: View {
                         Circle()
                             .stroke(isSelected ? Color.blue : Color.gray.opacity(0.5), lineWidth: 1)
                     )
-                
+
                 VStack(alignment: .leading, spacing: 0) {
                     Text(animation.name)
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(isSelected ? .white : .gray)
-                    
+
                     HStack(spacing: 4) {
                         Text("\(animation.frames.count)f")
                             .font(.system(size: 9))
                             .foregroundColor(isSelected ? .white.opacity(0.8) : .gray)
-                        
+
                         Text("•")
                             .font(.system(size: 8))
                             .foregroundColor(isSelected ? .white.opacity(0.5) : .gray.opacity(0.5))
-                        
+
                         Text("\(String(format: "%.1f", animation.duration))s")
                             .font(.system(size: 9))
                             .foregroundColor(isSelected ? .white.opacity(0.8) : .gray)
                     }
                 }
-                
+
                 Spacer()
 
-
-
-                                if isSelected {
+                if isSelected {
                     Image(systemName: "checkmark")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundColor(.white)
@@ -466,7 +468,9 @@ struct AnimationRowItem: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 4)
-                    .stroke(isSelected ? Color.blue.opacity(0.4) : Color.gray.opacity(0.15), lineWidth: 1)
+                    .stroke(
+                        isSelected ? Color.blue.opacity(0.4) : Color.gray.opacity(0.15),
+                        lineWidth: 1)
             )
         }
         .buttonStyle(PlainButtonStyle())

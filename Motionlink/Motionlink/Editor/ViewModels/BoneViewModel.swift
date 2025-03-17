@@ -5,6 +5,7 @@
 
 import Foundation
 import SwiftUI
+import tnfkit
 
 class BoneViewModel: ObservableObject {
     @Published var selectedAnimation: CapturedAnimation?
@@ -68,7 +69,7 @@ class BoneViewModel: ObservableObject {
         let joints = firstFrame.joints
         var hierarchyItems: [BoneHierarchyItem] = []
         
-        let rootBones = joints.enumerated()
+        _ = joints.enumerated()
             .filter { $0.element.parentIndex == nil || $0.element.parentIndex == -1 }
             .map { $0.offset }
         

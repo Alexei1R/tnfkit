@@ -10,29 +10,17 @@ let package = Package(
     products: [
         .library(
             name: "tnfkit",
-            targets: ["tnfkit", "Core", "Engine"])
+            targets: ["tnfkit"])
     ],
     dependencies: [],
     targets: [
         .target(
             name: "tnfkit",
-            dependencies: ["Core", "Engine"],
+            dependencies: [],
             path: "Sources/tnfkit",
             resources: [
                 .process("Assets")
             ]
-        ),
-
-        .target(
-            name: "Core",
-            dependencies: [],
-            path: "Sources/Core"
-        ),
-
-        .target(
-            name: "Engine",
-            dependencies: ["Core"],
-            path: "Sources/Engine"
-        ),
+        )
     ]
 )

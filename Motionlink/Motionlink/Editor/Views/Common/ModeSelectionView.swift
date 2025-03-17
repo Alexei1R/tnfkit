@@ -1,5 +1,5 @@
 // Copyright (c) 2025 The Noughy Fox
-// 
+//
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
@@ -41,7 +41,7 @@ struct ModeSelectorOption: View {
 struct ModeSelectorView: View {
     @ObservedObject var toolSelector: ToolSelector
     @State private var showMenu = false
-    @State private var isLongPressing = false
+    @State private var isPressed = false
     
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -83,6 +83,9 @@ struct ModeSelectorView: View {
             }
             
             Button(action: {
+                withAnimation(.spring()) {
+                    showMenu.toggle()
+                }
                 print("Selected mode: \(toolSelector.currentMode.rawValue)")
             }) {
                 HStack(spacing: 8) {
@@ -112,22 +115,14 @@ struct ModeSelectorView: View {
                         .stroke(Color.white.opacity(0.1), lineWidth: 1)
                 )
                 .shadow(color: Color.black.opacity(0.3), radius: 3, x: 0, y: 1)
-                .scaleEffect(isLongPressing ? 0.95 : 1.0)
-                .animation(.easeInOut(duration: 0.2), value: isLongPressing)
+                .scaleEffect(isPressed ? 0.95 : 1.0)
+                .animation(.easeInOut(duration: 0.2), value: isPressed)
             }
             .buttonStyle(PlainButtonStyle())
             .simultaneousGesture(
-                LongPressGesture(minimumDuration: 0.3)
-                    .onEnded { _ in
-                        withAnimation(.spring()) {
-                            showMenu.toggle()
-                        }
-                    }
-            )
-            .simultaneousGesture(
                 DragGesture(minimumDistance: 0)
-                    .onChanged { _ in isLongPressing = true }
-                    .onEnded { _ in isLongPressing = false }
+                    .onChanged { _ in isPressed = true }
+                    .onEnded { _ in isPressed = false }
             )
         }
     }

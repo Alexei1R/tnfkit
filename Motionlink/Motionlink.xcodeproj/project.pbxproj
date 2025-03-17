@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		628447182D761C7D0019AE23 /* tnfkit in Frameworks */ = {isa = PBXBuildFile; productRef = 628447172D761C7D0019AE23 /* tnfkit */; };
+		62B12EB12D88271800706375 /* tnfkit in Frameworks */ = {isa = PBXBuildFile; productRef = 62B12EB02D88271800706375 /* tnfkit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -40,6 +41,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				62B12EB12D88271800706375 /* tnfkit in Frameworks */,
 				628447182D761C7D0019AE23 /* tnfkit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -84,6 +86,7 @@
 			name = Motionlink;
 			packageProductDependencies = (
 				628447172D761C7D0019AE23 /* tnfkit */,
+				62B12EB02D88271800706375 /* tnfkit */,
 			);
 			productName = Motionlink;
 			productReference = 628447052D76185B0019AE23 /* Motionlink.app */;
@@ -114,7 +117,7 @@
 			mainGroup = 628446FC2D76185B0019AE23;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				628447162D761C7D0019AE23 /* XCLocalSwiftPackageReference "../../tnfkit" */,
+				62B12EAF2D88271800706375 /* XCLocalSwiftPackageReference "../../tnfkit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 628447062D76185B0019AE23 /* Products */;
@@ -362,7 +365,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		628447162D761C7D0019AE23 /* XCLocalSwiftPackageReference "../../tnfkit" */ = {
+		62B12EAF2D88271800706375 /* XCLocalSwiftPackageReference "../../tnfkit" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../../tnfkit;
 		};
@@ -370,6 +373,10 @@
 
 /* Begin XCSwiftPackageProductDependency section */
 		628447172D761C7D0019AE23 /* tnfkit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = tnfkit;
+		};
+		62B12EB02D88271800706375 /* tnfkit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = tnfkit;
 		};
