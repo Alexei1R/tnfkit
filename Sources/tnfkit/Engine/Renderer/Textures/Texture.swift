@@ -192,6 +192,65 @@ public final class Texture {
         }
     }
 
+    public static func fromBundle(device: MTLDevice, name: String, extension: String = "jpg")
+        -> Texture?
+    {
+        let textureLoader = MTKTextureLoader(device: device)
+
+        // Try multiple extensions if needed
+        let extensions = [`extension`, "png", "jpg", "jpeg"]
+
+        for ext in extensions {
+            // Try to find in bundle first
+            if let url = Bundle.main.url(forResource: name, withExtension: ext) {
+                do {
+                    let texture = try textureLoader.newTexture(URL: url, options: nil)
+
+                    var config = TextureConfig(name: "\(name).\(ext)")
+                    config.width = texture.width
+                    config.height = texture.height
+                    config.pixelFormat = texture.pixelFormat
+
+                    Log.info("Successfully loaded texture from bundle: \(name).\(ext)")
+                    return Texture(device: device, existingTexture: texture, config: config)
+                } catch {
+                    Log.warning(
+                        "Failed to load texture from bundle: \(name).\(ext): \(error.localizedDescription)"
+                    )
+                    // Continue trying other extensions
+                }
+            }
+        }
+
+        // Try Assets directory as a fallback
+        if let assetsURL = Bundle.main.resourceURL?.appendingPathComponent("Assets") {
+            for ext in extensions {
+                let fileURL = assetsURL.appendingPathComponent("\(name).\(ext)")
+                if FileManager.default.fileExists(atPath: fileURL.path) {
+                    do {
+                        let texture = try textureLoader.newTexture(URL: fileURL, options: nil)
+
+                        var config = TextureConfig(name: "\(name).\(ext)")
+                        config.width = texture.width
+                        config.height = texture.height
+                        config.pixelFormat = texture.pixelFormat
+
+                        Log.info(
+                            "Successfully loaded texture from Assets directory: \(name).\(ext)")
+                        return Texture(device: device, existingTexture: texture, config: config)
+                    } catch {
+                        Log.warning(
+                            "Failed to load texture from Assets directory: \(name).\(ext): \(error.localizedDescription)"
+                        )
+                    }
+                }
+            }
+        }
+
+        Log.error("Failed to find texture in bundle or Assets directory: \(name)")
+        return nil
+    }
+
     // MARK: - Texture Operations
 
     public func setData(
@@ -302,3 +361,4 @@ public final class Texture {
         return texture
     }
 }
+
