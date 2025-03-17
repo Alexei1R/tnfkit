@@ -90,7 +90,7 @@ public class TexturedQuad: RenderablePrimitive {
         bufferStack.addBuffer(type: .index, data: quadIndices)
         
         // Add uniform buffer with initial data
-        var uniforms = Uniforms()
+        let uniforms = Uniforms()
         uniformBufferHandle = bufferStack.addBuffer(type: .uniform, data: [uniforms])
     }
     
@@ -100,14 +100,14 @@ public class TexturedQuad: RenderablePrimitive {
         
         // Update transform buffer if we have a handle
         if let handle = uniformBufferHandle {
-            var uniforms = Uniforms(
+            let uniforms = Uniforms(
                 modelMatrix: transform,
                 viewMatrix: camera.getViewMatrix(),
                 projectionMatrix: camera.getProjectionMatrix(),
                 lightPosition: vec3f(0, 5, 0),
                 viewPosition: camera.position
             )
-            bufferStack.updateBuffer(handle: handle, data: [uniforms])
+            _ = bufferStack.updateBuffer(handle: handle, data: [uniforms])
         }
         
         // Bind buffers

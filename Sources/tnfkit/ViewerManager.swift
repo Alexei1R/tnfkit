@@ -31,22 +31,28 @@ class ViewerManager {
             return
         }
         self.renderer = renderer
-        // Create and add textured quad
-        if let texturedQuad = TexturedQuad(device: view.device!, texturePath: "cat") {
-            renderer.addRenderable(texturedQuad)
-            Log.info("Added textured quad to renderer")
+
+        // Load and add the person.usdz model
+        if let personMesh = Mesh(device: view.device!, modelPath: "person") {
+            renderer.addRenderable(personMesh)
+            Log.info("Added person model to renderer")
         } else {
-            Log.error("Failed to create textured quad")
+            Log.error("Failed to create person model")
         }
 
-        //Select
+        // Fallback to textured quad if model loading fails
+        if let texturedQuad = TexturedQuad(device: view.device!, texturePath: "cat") {
+            renderer.addRenderable(texturedQuad)
+            Log.info("Added textured quad to renderer (fallback)")
+        }
+
+        // Add selector for interaction
         if let selector = Selector(device: view.device!, toolManager: toolManager) {
             renderer.addRenderable(selector)
             Log.info("Added selector to renderer")
         } else {
             Log.error("Failed to create selector")
         }
-
     }
 
     func resize(size: vec2i) {
