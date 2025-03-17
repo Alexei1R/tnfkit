@@ -142,9 +142,12 @@ public final class Texture {
         descriptor.minFilter = .linear
         descriptor.magFilter = .linear
         descriptor.mipFilter = config.mipmapped ? .linear : .notMipmapped
-        descriptor.sAddressMode = .clampToEdge
-        descriptor.tAddressMode = .clampToEdge
-        descriptor.rAddressMode = .clampToEdge
+        
+        // Use repeat addressing mode for better texture wrapping on 3D models
+        // This is particularly important for seamless textures
+        descriptor.sAddressMode = .repeat
+        descriptor.tAddressMode = .repeat
+        descriptor.rAddressMode = .repeat
 
         samplerState = device.makeSamplerState(descriptor: descriptor)
     }

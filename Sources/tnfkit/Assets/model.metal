@@ -58,13 +58,11 @@ vertex VertexOut vertex_main_model(VertexIn in [[stage_in]],
 fragment float4 fragment_main_model(VertexOut in [[stage_in]],
                             texture2d<float> albedoTexture [[texture(0)]],
                             sampler textureSampler [[sampler(0)]]) {
-    constexpr sampler defaultSampler(mip_filter::linear, 
-                                    mag_filter::linear, 
-                                    min_filter::linear,
-                                    address::repeat);
+    // Use the provided sampler instead of creating a new one
+    // This ensures we use the sampler created in the Texture class
     
     // Simple implementation for now (Blinn-Phong)
-    float3 albedo = albedoTexture.sample(defaultSampler, in.texCoord).rgb;
+    float3 albedo = albedoTexture.sample(textureSampler, in.texCoord).rgb;
     
     // Normalize interpolated vectors
     float3 N = normalize(in.normal);

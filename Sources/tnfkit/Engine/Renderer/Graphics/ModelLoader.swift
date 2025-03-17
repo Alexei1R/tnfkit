@@ -212,9 +212,10 @@ public class ModelLoader {
 
             // Texture coordinate
             if let (offset, _) = attributeMap[MDLVertexAttributeTextureCoordinate] {
-                vertex.textureCoordinate =
-                    baseAddress.advanced(by: offset)
+                let texCoord = baseAddress.advanced(by: offset)
                     .assumingMemoryBound(to: vec2f.self).pointee
+                // Fix texture coordinates by flipping the Y coordinate
+                vertex.textureCoordinate = vec2f(texCoord.x, 1.0 - texCoord.y)
             }
 
             // Tangent
