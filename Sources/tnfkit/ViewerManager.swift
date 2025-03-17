@@ -39,6 +39,14 @@ class ViewerManager {
             Log.error("Failed to create textured quad")
         }
 
+        //Select
+        if let selector = Selector(device: view.device!, toolManager: toolManager) {
+            renderer.addRenderable(selector)
+            Log.info("Added selector to renderer")
+        } else {
+            Log.error("Failed to create selector")
+        }
+
     }
 
     func resize(size: vec2i) {
