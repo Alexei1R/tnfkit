@@ -5,22 +5,43 @@
 
 #include <metal_stdlib>
 using namespace metal;
+
+//NOTE: Vertex input data
 struct VertexIn {
   float2 position [[attribute(0)]];
 };
 
+//NOTE: Data passed to fragment shader
 struct VertexOut {
   float4 position [[position]];
-  float4 color;
+  float2 uv;
 };
 
-vertex VertexOut vertex_main_selector(VertexIn in [[stage_in]]) {
+//NOTE: Vertex shader for selection rendering
+vertex VertexOut vertex_main_selector(VertexIn in [[stage_in]], 
+                                     constant float &param [[buffer(1)]]) {
   VertexOut out;
-  out.position = float4(in.position, 1.0);
-  out.color = float4(1.0, 1.0, 1.0, 1.0);
+  
+  //NOTE: Use Z=0 to ensure drawing on top
+  out.position = float4(in.position, 0.0, 1.0);
+  
+  //NOTE: Transform to [0,1] space for gradient effects
+  out.uv = in.position.xy * 0.5 + 0.5;
+  
   return out;
 }
-fragment float4 fragment_main_selector(VertexOut in [[stage_in]]) {
-  // Use fixed color for rendering
-  return float4(1.0, 0.0, 0.0, 1.0);
+
+//NOTE: Fragment shader for selection rendering
+fragment float4 fragment_main_selector(VertexOut in [[stage_in]], 
+                                      constant float4 &color [[buffer(0)]]) {
+  //NOTE: Selection fill and outline use different shading
+  if (color.a < 0.3) {
+    //NOTE: Fill area with gradient
+    float distFromCenter = length(in.uv - float2(0.5));
+    float gradientFactor = 1.0 - distFromCenter * 0.5;
+    return float4(color.rgb, color.a * gradientFactor);
+  } else {
+    //NOTE: Solid outline
+    return float4(color.rgb, 1.0);
+  }
 }
