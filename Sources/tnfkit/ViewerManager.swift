@@ -32,18 +32,15 @@ class ViewerManager {
         }
         self.renderer = renderer
 
-        // Load and add the person.usdz model
+        // Load and add the person.usdz model , might select vertices from it
         if let personMesh = Mesh(device: view.device!, modelPath: "person") {
+            personMesh.setPosition(vec3f.up * -1)
+            personMesh.setScale(vec3f.one * 0.01)
+            personMesh.setRotation(angle: 180, axis: .x)
             renderer.addRenderable(personMesh)
             Log.info("Added person model to renderer")
         } else {
             Log.error("Failed to create person model")
-        }
-
-        // Fallback to textured quad if model loading fails
-        if let texturedQuad = TexturedQuad(device: view.device!, texturePath: "cat") {
-            renderer.addRenderable(texturedQuad)
-            Log.info("Added textured quad to renderer (fallback)")
         }
 
         // Add selector for interaction
@@ -67,6 +64,13 @@ class ViewerManager {
         guard let renderer = renderer else { return }
         renderer.beginFrame(camera: currentCamera, deltaTime: dt)
         renderer.endFrame(view: view)
+
+        //Lock the camera if the tool is not control
+        if toolManager.getActiveTool() == .control {
+            cameraController.setEnabled(true)
+        } else {
+            cameraController.setEnabled(false)
+        }
     }
 
     public func debugButton() {

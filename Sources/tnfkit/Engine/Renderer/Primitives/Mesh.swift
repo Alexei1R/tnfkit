@@ -226,7 +226,6 @@ public class Mesh: RenderablePrimitive {
 
     // Helper to rotate the model
     public func setRotation(angle: Float, axis: Axis) {
-        transform = transform.rotate(angle, axis: axis)
+        transform = transform.rotateDegrees(angle, axis: axis)
     }
 }
-
