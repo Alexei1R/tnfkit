@@ -1,0 +1,429 @@
+diff --git a/Sources/tnfkit/Assets/model.metal b/Sources/tnfkit/Assets/model.metal
+index b92f107..2cbc93c 100644
+--- a/Sources/tnfkit/Assets/model.metal
++++ b/Sources/tnfkit/Assets/model.metal
+@@ -7,80 +7,79 @@
+ using namespace metal;
+ 
+ struct VertexIn {
+-    float3 position [[attribute(0)]];
+-    float3 normal [[attribute(1)]];
+-    float2 texCoord [[attribute(2)]];
+-    float3 tangent [[attribute(3)]];
+-    float3 bitangent [[attribute(4)]];
++  float3 position [[attribute(0)]];
++  float3 normal [[attribute(1)]];
++  float2 texCoord [[attribute(2)]];
++  float3 tangent [[attribute(3)]];
++  float3 bitangent [[attribute(4)]];
+ };
+ 
+ struct VertexOut {
+-    float4 position [[position]];
+-    float3 worldPosition;
+-    float3 normal;
+-    float2 texCoord;
+-    float3 tangent;
+-    float3 bitangent;
++  float4 position [[position]];
++  float3 worldPosition;
++  float3 normal;
++  float2 texCoord;
++  float3 tangent;
++  float3 bitangent;
+ };
+ 
+ struct Uniforms {
+-    float4x4 modelMatrix;
+-    float4x4 viewMatrix;
+-    float4x4 projectionMatrix;
+-    float3 lightPosition;
+-    float3 viewPosition;
++  float4x4 modelMatrix;
++  float4x4 viewMatrix;
++  float4x4 projectionMatrix;
++  float3 lightPosition;
++  float3 viewPosition;
+ };
+ 
+ vertex VertexOut vertex_main_model(VertexIn in [[stage_in]],
+-                           constant Uniforms &uniforms [[buffer(1)]]) {
+-    VertexOut out;
+-    
+-    // Calculate position
+-    float4 worldPos = uniforms.modelMatrix * float4(in.position, 1.0);
+-    out.worldPosition = worldPos.xyz / worldPos.w;
+-    out.position = uniforms.projectionMatrix * uniforms.viewMatrix * worldPos;
+-    
+-    // Transform normals and tangents to world space
+-    float3x3 normalMatrix = float3x3(
+-        uniforms.modelMatrix[0].xyz,
+-        uniforms.modelMatrix[1].xyz,
+-        uniforms.modelMatrix[2].xyz
+-    );
+-    
+-    out.normal = normalize(normalMatrix * in.normal);
+-    out.tangent = normalize(normalMatrix * in.tangent);
+-    out.bitangent = normalize(normalMatrix * in.bitangent);
+-    out.texCoord = in.texCoord;
+-    
+-    return out;
++                                   constant Uniforms &uniforms [[buffer(1)]]) {
++  VertexOut out;
++
++  // Calculate position
++  float4 worldPos = uniforms.modelMatrix * float4(in.position, 1.0);
++  out.worldPosition = worldPos.xyz / worldPos.w;
++  out.position = uniforms.projectionMatrix * uniforms.viewMatrix * worldPos;
++
++  // Transform normals and tangents to world space
++  float3x3 normalMatrix =
++      float3x3(uniforms.modelMatrix[0].xyz, uniforms.modelMatrix[1].xyz,
++               uniforms.modelMatrix[2].xyz);
++
++  out.normal = normalize(normalMatrix * in.normal);
++  out.tangent = normalize(normalMatrix * in.tangent);
++  out.bitangent = normalize(normalMatrix * in.bitangent);
++  out.texCoord = in.texCoord;
++
++  return out;
+ }
+ 
+ fragment float4 fragment_main_model(VertexOut in [[stage_in]],
+-                            texture2d<float> albedoTexture [[texture(0)]],
+-                            sampler textureSampler [[sampler(0)]]) {
+-    // Use the provided sampler instead of creating a new one
+-    // This ensures we use the sampler created in the Texture class
+-    
+-    // Simple implementation for now (Blinn-Phong)
+-    float3 albedo = albedoTexture.sample(textureSampler, in.texCoord).rgb;
+-    
+-    // Normalize interpolated vectors
+-    float3 N = normalize(in.normal);
+-    float3 L = normalize(float3(0, 5, 0) - in.worldPosition);
+-    float3 V = normalize(float3(0, 0, 5) - in.worldPosition);
+-    float3 H = normalize(L + V);
+-    
+-    // Basic diffuse lighting
+-    float diffuse = max(dot(N, L), 0.0);
+-    
+-    // Basic specular (Blinn-Phong)
+-    float specular = pow(max(dot(N, H), 0.0), 64.0) * 0.5;
+-    
+-    // Ambient term
+-    float3 ambient = albedo * 0.3;
+-    
+-    // Final color
+-    float3 finalColor = ambient + (albedo * diffuse) + specular;
+-    
+-    return float4(finalColor, 1.0);
+-}
+\ No newline at end of file
++                                    texture2d<float> albedoTexture
++                                    [[texture(0)]],
++                                    sampler textureSampler [[sampler(0)]]) {
++  // Use the provided sampler instead of creating a new one
++  // This ensures we use the sampler created in the Texture class
++
++  // Simple implementation for now (Blinn-Phong)
++  float3 albedo = albedoTexture.sample(textureSampler, in.texCoord).rgb;
++
++  // Normalize interpolated vectors
++  float3 N = normalize(in.normal);
++  float3 L = normalize(float3(0, 5, 0) - in.worldPosition);
++  float3 V = normalize(float3(0, 0, 5) - in.worldPosition);
++  float3 H = normalize(L + V);
++
++  // Basic diffuse lighting
++  float diffuse = max(dot(N, L), 0.0);
++
++  // Basic specular (Blinn-Phong)
++  float specular = pow(max(dot(N, H), 0.0), 64.0) * 0.5;
++
++  // Ambient term
++  float3 ambient = albedo * 0.3;
++
++  // Final color
++  float3 finalColor = ambient + (albedo * diffuse) + specular;
++
++  return float4(finalColor, 1.0);
++}
+diff --git a/Sources/tnfkit/Core/Math/Math.swift b/Sources/tnfkit/Core/Math/Math.swift
+index e368b34..af6da3a 100644
+--- a/Sources/tnfkit/Core/Math/Math.swift
++++ b/Sources/tnfkit/Core/Math/Math.swift
+@@ -14,6 +14,7 @@ public typealias vec4u = SIMD4<UInt32>
+ 
+ public typealias vec2i = SIMD2<Int32>
+ public typealias vec3i = SIMD3<Int32>
++public typealias vec4i = SIMD4<Int32>
+ 
+ public typealias vec2f = SIMD2<Float>
+ public typealias vec3f = SIMD3<Float>
+@@ -30,13 +31,13 @@ public enum Axis {
+ 
+ extension mat4f {
+     // MARK: Basic Properties
+-    
++
+     public static var identity: mat4f {
+         matrix_identity_float4x4
+     }
+-    
++
+     // MARK: Component Getters/Setters
+-    
++
+     /// Gets or sets the translation component of the matrix
+     public var translation: vec3f {
+         get {
+@@ -48,7 +49,7 @@ extension mat4f {
+             columns.3.z = newValue.z
+         }
+     }
+-    
++
+     /// Gets or sets the scale component of the matrix
+     public var scale: vec3f {
+         get {
+@@ -63,44 +64,44 @@ extension mat4f {
+             let xAxis = normalize(vec3f(columns.0.x, columns.0.y, columns.0.z))
+             let yAxis = normalize(vec3f(columns.1.x, columns.1.y, columns.1.z))
+             let zAxis = normalize(vec3f(columns.2.x, columns.2.y, columns.2.z))
+-            
++
+             // Apply new scale
+             columns.0.x = xAxis.x * newValue.x
+             columns.0.y = xAxis.y * newValue.x
+             columns.0.z = xAxis.z * newValue.x
+-            
++
+             columns.1.x = yAxis.x * newValue.y
+             columns.1.y = yAxis.y * newValue.y
+             columns.1.z = yAxis.z * newValue.y
+-            
++
+             columns.2.x = zAxis.x * newValue.z
+             columns.2.y = zAxis.y * newValue.z
+             columns.2.z = zAxis.z * newValue.z
+         }
+     }
+-    
++
+     /// Gets or sets the rotation as Euler angles in radians (x: pitch, y: yaw, z: roll)
+     public var rotation: vec3f {
+         get {
+             // Extract the normalized basis vectors
+             let scaleVec = self.scale
+-            
++
+             let m00 = columns.0.x / scaleVec.x
+             let m10 = columns.0.y / scaleVec.x
+             let m20 = columns.0.z / scaleVec.x
+-            
++
+             let m01 = columns.1.x / scaleVec.y
+             let m11 = columns.1.y / scaleVec.y
+             let m21 = columns.1.z / scaleVec.y
+-            
++
+             let m02 = columns.2.x / scaleVec.z
+             let m12 = columns.2.y / scaleVec.z
+             let m22 = columns.2.z / scaleVec.z
+-            
++
+             var pitch: Float = 0
+             var yaw: Float = 0
+             var roll: Float = 0
+-            
++
+             // Handle gimbal lock cases
+             if m20 > 0.99999 {
+                 pitch = .pi / 2
+@@ -115,7 +116,7 @@ extension mat4f {
+                 yaw = atan2(m10, m00)
+                 roll = atan2(m21, m22)
+             }
+-            
++
+             return vec3f(pitch, yaw, roll)
+         }
+         set {
+@@ -126,42 +127,42 @@ extension mat4f {
+             let sY = sin(newValue.y)
+             let cZ = cos(newValue.z)
+             let sZ = sin(newValue.z)
+-            
++
+             // Compute rotation matrix elements
+             let m00 = cY * cZ
+             let m01 = cY * sZ
+             let m02 = -sY
+-            
++
+             let m10 = sX * sY * cZ - cX * sZ
+             let m11 = sX * sY * sZ + cX * cZ
+             let m12 = sX * cY
+-            
++
+             let m20 = cX * sY * cZ + sX * sZ
+             let m21 = cX * sY * sZ - sX * cZ
+             let m22 = cX * cY
+-            
++
+             // Preserve scale and translation
+             let scaleVec = self.scale
+             let translationVec = self.translation
+-            
++
+             // Apply rotations with scales
+             columns.0.x = m00 * scaleVec.x
+             columns.0.y = m10 * scaleVec.x
+             columns.0.z = m20 * scaleVec.x
+-            
++
+             columns.1.x = m01 * scaleVec.y
+             columns.1.y = m11 * scaleVec.y
+             columns.1.z = m21 * scaleVec.y
+-            
++
+             columns.2.x = m02 * scaleVec.z
+             columns.2.y = m12 * scaleVec.z
+             columns.2.z = m22 * scaleVec.z
+-            
++
+             // Restore translation
+             self.translation = translationVec
+         }
+     }
+-    
++
+     /// Gets or sets the rotation as Euler angles in degrees
+     public var rotationDegrees: vec3f {
+         get {
+@@ -171,9 +172,9 @@ extension mat4f {
+             rotation = newValue * (.pi / 180)
+         }
+     }
+-    
++
+     // MARK: Matrix Construction
+-    
++
+     @inlinable
+     public static func lookAt(eye: vec3f, target: vec3f, up: vec3f) -> mat4f {
+         let zAxis = normalize(target - eye)
+@@ -268,9 +269,9 @@ extension mat4f {
+             vec4f(0, 0, 0, 1)
+         )
+     }
+-    
++
+     // MARK: Transformation Operations
+-    
++
+     @inlinable
+     public func rotate(_ rad: Float, axis: Axis) -> mat4f {
+         let cosA = cos(rad)
+@@ -341,14 +342,14 @@ extension mat4f {
+         )
+         return self * translation
+     }
+-    
++
+     // MARK: Matrix Composition/Decomposition
+-    
++
+     /// Decomposes the matrix into translation, rotation, and scale components
+     public func decompose() -> (translation: vec3f, rotation: vec3f, scale: vec3f) {
+         return (translation: self.translation, rotation: self.rotation, scale: self.scale)
+     }
+-    
++
+     /// Creates a matrix from translation, rotation, and scale components
+     public static func compose(translation: vec3f, rotation: vec3f, scale: vec3f) -> mat4f {
+         var matrix = mat4f.identity
+@@ -357,14 +358,14 @@ extension mat4f {
+         matrix.translation = translation
+         return matrix
+     }
+-    
++
+     /// Creates a rotation matrix from Euler angles (in radians)
+     public static func fromEuler(pitch: Float, yaw: Float, roll: Float) -> mat4f {
+         var matrix = mat4f.identity
+         matrix.rotation = vec3f(pitch, yaw, roll)
+         return matrix
+     }
+-    
++
+     /// Creates a rotation matrix from Euler angles (in degrees)
+     public static func fromEulerDegrees(pitch: Float, yaw: Float, roll: Float) -> mat4f {
+         fromEuler(
+@@ -373,14 +374,14 @@ extension mat4f {
+             roll: roll * .pi / 180
+         )
+     }
+-    
++
+     // MARK: Utility Functions
+-    
++
+     @inlinable
+     public func clamp<T: Comparable>(_ value: T, _ min: T, _ max: T) -> T {
+         Swift.min(Swift.max(value, min), max)
+     }
+-    
++
+     @inlinable
+     public func inverse() -> mat4f {
+         simd_inverse(self)
+diff --git a/Sources/tnfkit/Engine/Renderer/Graphics/ModelLoader.swift b/Sources/tnfkit/Engine/Renderer/Graphics/ModelLoader.swift
+index 646c896..264c5c2 100644
+--- a/Sources/tnfkit/Engine/Renderer/Graphics/ModelLoader.swift
++++ b/Sources/tnfkit/Engine/Renderer/Graphics/ModelLoader.swift
+@@ -22,6 +22,7 @@ public struct StaticModelVertex {
+     var textureCoordinate: vec2f
+     var tangent: vec3f
+     var bitangent: vec3f
++    var jointIndices: vec4i = vec4i(0, 0, 0, 0)
+ }
+ 
+ public struct MeshData {
+@@ -90,6 +91,13 @@ public class ModelLoader {
+             bufferIndex: 0)
+         offset += MemoryLayout<vec3f>.stride
+ 
++        // Joint indices attribute
++        descriptor.attributes[5] = MDLVertexAttribute(
++            name: MDLVertexAttributeJointIndices,
++            format: .int4,
++            offset: offset,
++            bufferIndex: 0)
++
+         descriptor.layouts[0] = MDLVertexBufferLayout(stride: offset)
+         return descriptor
+     }()
+@@ -242,6 +250,17 @@ public class ModelLoader {
+                 }
+             }
+ 
++            // Joint joint jointIndices
++            if let (offset, _) = attributeMap[MDLVertexAttributeJointIndices] {
++                let jointIndices = baseAddress.advanced(by: offset).assumingMemoryBound(
++                    to: vec4i.self
++                )
++                .pointee
++                vertex.jointIndices = jointIndices
++            } else {
++                vertex.jointIndices = vec4i(0, 0, 0, 0)
++            }
++
+             vertices.append(vertex)
+         }
+ 
+@@ -657,4 +676,3 @@ public class ModelLoader {
+         return nil
+     }
+ }
+-

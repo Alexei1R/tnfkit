@@ -22,6 +22,7 @@ public struct StaticModelVertex {
     var textureCoordinate: vec2f
     var tangent: vec3f
     var bitangent: vec3f
+    var jointIndices: vec4i = vec4i(0, 0, 0, 0)
 }
 
 public struct MeshData {
@@ -37,7 +38,7 @@ public class ModelLoader {
     private(set) var loadedTextures: [String: Texture] = [:]
     private(set) var device: MTLDevice?
 
-    //NOTE: Matrix to convert from Blender's coordinate system to Metal's
+    // Matrix to convert from Blender's coordinate system to Metal's
     let blenderToMetalMatrix: mat4f = mat4f(
         vec4f(1, 0, 0, 0),
         vec4f(0, 0, 1, 0),
@@ -45,7 +46,7 @@ public class ModelLoader {
         vec4f(0, 0, 0, 1)
     )
 
-    //NOTE: Vertex descriptor defining the layout of vertex attributes in memory
+    // Vertex descriptor defining the layout of vertex attributes in memory
     private let vertexDescriptor: MDLVertexDescriptor = {
         let descriptor = MDLVertexDescriptor()
         var offset = 0
@@ -90,6 +91,14 @@ public class ModelLoader {
             bufferIndex: 0)
         offset += MemoryLayout<vec3f>.stride
 
+        // Joint indices attribute
+        descriptor.attributes[5] = MDLVertexAttribute(
+            name: MDLVertexAttributeJointIndices,
+            format: .int4,
+            offset: offset,
+            bufferIndex: 0)
+        offset += MemoryLayout<vec4i>.stride
+
         descriptor.layouts[0] = MDLVertexBufferLayout(stride: offset)
         return descriptor
     }()
@@ -98,7 +107,7 @@ public class ModelLoader {
         self.device = device ?? MTLCreateSystemDefaultDevice()
     }
 
-    //NOTE: Load a 3D model from the specified URL
+    // Load a 3D model from the specified URL
     public func load(from url: URL) throws {
         guard let device = self.device ?? MTLCreateSystemDefaultDevice() else {
             throw ModelLoaderError.failedToLoadAsset("No Metal device available")
@@ -120,7 +129,7 @@ public class ModelLoader {
         Log.info("Model loaded successfully")
     }
 
-    //NOTE: Extract and prepare meshes from the loaded asset
+    // Extract and prepare meshes from the loaded asset
     private func loadMeshes() throws {
         guard let foundMeshes = asset?.childObjects(of: MDLMesh.self) as? [MDLMesh],
             !foundMeshes.isEmpty
@@ -153,7 +162,7 @@ public class ModelLoader {
         }
     }
 
-    //NOTE: Extract mesh data from MDLMesh into our format
+    // Extract mesh data from MDLMesh into our format
     public func extractMeshData(from mesh: MDLMesh) -> MeshData? {
         guard let vertexBuffer = mesh.vertexBuffers.first as? MDLMeshBuffer,
             let layout = mesh.vertexDescriptor.layouts[0] as? MDLVertexBufferLayout
@@ -242,6 +251,14 @@ public class ModelLoader {
                 }
             }
 
+            // Joint indices
+            if let (offset, _) = attributeMap[MDLVertexAttributeJointIndices] {
+                vertex.jointIndices = baseAddress.advanced(by: offset)
+                    .assumingMemoryBound(to: vec4i.self).pointee
+            } else {
+                vertex.jointIndices = vec4i(0, 0, 0, 0)
+            }
+
             vertices.append(vertex)
         }
 
@@ -282,7 +299,7 @@ public class ModelLoader {
         return MeshData(vertices: vertices, indices: indices, material: material)
     }
 
-    //NOTE: Extract material data from MDLMesh
+    // Extract material data from MDLMesh
     private func extractMaterial(from mesh: MDLMesh) -> Material? {
         guard self.device != nil else {
             Log.error("No Metal device available")
@@ -407,7 +424,7 @@ public class ModelLoader {
         return material
     }
 
-    //NOTE: Extract texture from MDLMaterialProperty
+    // Extract texture from MDLMaterialProperty
     private func extractTexture(from property: MDLMaterialProperty, type: TextureContentType)
         -> Texture?
     {
@@ -522,7 +539,7 @@ public class ModelLoader {
         return nil
     }
 
-    //NOTE: Print model information for debugging purposes
+    // Print model information for debugging purposes
     public func printModelInfo() {
         Log.info("=== Model Information ===")
         Log.info("Number of meshes: \(meshes.count)")
@@ -566,17 +583,17 @@ public class ModelLoader {
         }
     }
 
-    //NOTE: Enable or disable Blender to Metal coordinate system conversion
+    // Enable or disable Blender to Metal coordinate system conversion
     public func enableCoordinateSystemConversion(_ enable: Bool) {
         changeCoordinateSystem = enable
     }
 
-    //NOTE: Clear the loaded textures cache
+    // Clear the loaded textures cache
     public func clearTextureCache() {
         loadedTextures.removeAll()
     }
 
-    //NOTE: Preload textures from Assets directory
+    // Preload textures from Assets directory
     public func preloadTexturesFromAssets() {
         guard let device = self.device else {
             Log.error("No Metal device available for preloading textures")
@@ -633,7 +650,7 @@ public class ModelLoader {
         }
     }
 
-    //NOTE: Load a specific texture from URL with caching
+    // Load a specific texture from URL with caching
     public func loadTexture(from url: URL, type: TextureContentType = .albedo) -> Texture? {
         guard let device = self.device else {
             Log.error("No Metal device available")
@@ -657,4 +674,3 @@ public class ModelLoader {
         return nil
     }
 }
-

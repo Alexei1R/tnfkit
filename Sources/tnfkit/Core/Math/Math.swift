@@ -14,6 +14,7 @@ public typealias vec4u = SIMD4<UInt32>
 
 public typealias vec2i = SIMD2<Int32>
 public typealias vec3i = SIMD3<Int32>
+public typealias vec4i = SIMD4<Int32>
 
 public typealias vec2f = SIMD2<Float>
 public typealias vec3f = SIMD3<Float>
@@ -30,13 +31,13 @@ public enum Axis {
 
 extension mat4f {
     // MARK: Basic Properties
-    
+
     public static var identity: mat4f {
         matrix_identity_float4x4
     }
-    
+
     // MARK: Component Getters/Setters
-    
+
     /// Gets or sets the translation component of the matrix
     public var translation: vec3f {
         get {
@@ -48,7 +49,7 @@ extension mat4f {
             columns.3.z = newValue.z
         }
     }
-    
+
     /// Gets or sets the scale component of the matrix
     public var scale: vec3f {
         get {
@@ -63,44 +64,44 @@ extension mat4f {
             let xAxis = normalize(vec3f(columns.0.x, columns.0.y, columns.0.z))
             let yAxis = normalize(vec3f(columns.1.x, columns.1.y, columns.1.z))
             let zAxis = normalize(vec3f(columns.2.x, columns.2.y, columns.2.z))
-            
+
             // Apply new scale
             columns.0.x = xAxis.x * newValue.x
             columns.0.y = xAxis.y * newValue.x
             columns.0.z = xAxis.z * newValue.x
-            
+
             columns.1.x = yAxis.x * newValue.y
             columns.1.y = yAxis.y * newValue.y
             columns.1.z = yAxis.z * newValue.y
-            
+
             columns.2.x = zAxis.x * newValue.z
             columns.2.y = zAxis.y * newValue.z
             columns.2.z = zAxis.z * newValue.z
         }
     }
-    
+
     /// Gets or sets the rotation as Euler angles in radians (x: pitch, y: yaw, z: roll)
     public var rotation: vec3f {
         get {
             // Extract the normalized basis vectors
             let scaleVec = self.scale
-            
+
             let m00 = columns.0.x / scaleVec.x
             let m10 = columns.0.y / scaleVec.x
             let m20 = columns.0.z / scaleVec.x
-            
+
             let m01 = columns.1.x / scaleVec.y
             let m11 = columns.1.y / scaleVec.y
             let m21 = columns.1.z / scaleVec.y
-            
+
             let m02 = columns.2.x / scaleVec.z
             let m12 = columns.2.y / scaleVec.z
             let m22 = columns.2.z / scaleVec.z
-            
+
             var pitch: Float = 0
             var yaw: Float = 0
             var roll: Float = 0
-            
+
             // Handle gimbal lock cases
             if m20 > 0.99999 {
                 pitch = .pi / 2
@@ -115,7 +116,7 @@ extension mat4f {
                 yaw = atan2(m10, m00)
                 roll = atan2(m21, m22)
             }
-            
+
             return vec3f(pitch, yaw, roll)
         }
         set {
@@ -126,42 +127,42 @@ extension mat4f {
             let sY = sin(newValue.y)
             let cZ = cos(newValue.z)
             let sZ = sin(newValue.z)
-            
+
             // Compute rotation matrix elements
             let m00 = cY * cZ
             let m01 = cY * sZ
             let m02 = -sY
-            
+
             let m10 = sX * sY * cZ - cX * sZ
             let m11 = sX * sY * sZ + cX * cZ
             let m12 = sX * cY
-            
+
             let m20 = cX * sY * cZ + sX * sZ
             let m21 = cX * sY * sZ - sX * cZ
             let m22 = cX * cY
-            
+
             // Preserve scale and translation
             let scaleVec = self.scale
             let translationVec = self.translation
-            
+
             // Apply rotations with scales
             columns.0.x = m00 * scaleVec.x
             columns.0.y = m10 * scaleVec.x
             columns.0.z = m20 * scaleVec.x
-            
+
             columns.1.x = m01 * scaleVec.y
             columns.1.y = m11 * scaleVec.y
             columns.1.z = m21 * scaleVec.y
-            
+
             columns.2.x = m02 * scaleVec.z
             columns.2.y = m12 * scaleVec.z
             columns.2.z = m22 * scaleVec.z
-            
+
             // Restore translation
             self.translation = translationVec
         }
     }
-    
+
     /// Gets or sets the rotation as Euler angles in degrees
     public var rotationDegrees: vec3f {
         get {
@@ -171,9 +172,9 @@ extension mat4f {
             rotation = newValue * (.pi / 180)
         }
     }
-    
+
     // MARK: Matrix Construction
-    
+
     @inlinable
     public static func lookAt(eye: vec3f, target: vec3f, up: vec3f) -> mat4f {
         let zAxis = normalize(target - eye)
@@ -268,9 +269,9 @@ extension mat4f {
             vec4f(0, 0, 0, 1)
         )
     }
-    
+
     // MARK: Transformation Operations
-    
+
     @inlinable
     public func rotate(_ rad: Float, axis: Axis) -> mat4f {
         let cosA = cos(rad)
@@ -341,14 +342,14 @@ extension mat4f {
         )
         return self * translation
     }
-    
+
     // MARK: Matrix Composition/Decomposition
-    
+
     /// Decomposes the matrix into translation, rotation, and scale components
     public func decompose() -> (translation: vec3f, rotation: vec3f, scale: vec3f) {
         return (translation: self.translation, rotation: self.rotation, scale: self.scale)
     }
-    
+
     /// Creates a matrix from translation, rotation, and scale components
     public static func compose(translation: vec3f, rotation: vec3f, scale: vec3f) -> mat4f {
         var matrix = mat4f.identity
@@ -357,14 +358,14 @@ extension mat4f {
         matrix.translation = translation
         return matrix
     }
-    
+
     /// Creates a rotation matrix from Euler angles (in radians)
     public static func fromEuler(pitch: Float, yaw: Float, roll: Float) -> mat4f {
         var matrix = mat4f.identity
         matrix.rotation = vec3f(pitch, yaw, roll)
         return matrix
     }
-    
+
     /// Creates a rotation matrix from Euler angles (in degrees)
     public static func fromEulerDegrees(pitch: Float, yaw: Float, roll: Float) -> mat4f {
         fromEuler(
@@ -373,14 +374,14 @@ extension mat4f {
             roll: roll * .pi / 180
         )
     }
-    
+
     // MARK: Utility Functions
-    
+
     @inlinable
     public func clamp<T: Comparable>(_ value: T, _ min: T, _ max: T) -> T {
         Swift.min(Swift.max(value, min), max)
     }
-    
+
     @inlinable
     public func inverse() -> mat4f {
         simd_inverse(self)

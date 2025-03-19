@@ -75,6 +75,7 @@ public class Mesh: RenderablePrimitive {
                 BufferElement(type: .float2, name: "TexCoord"),
                 BufferElement(type: .float3, name: "Tangent"),
                 BufferElement(type: .float3, name: "Bitangent"),
+                BufferElement(type: .int4, name: "JointIndices"),  // Added joint indices
             ])
 
             config.bufferLayouts = [(bufferLayout, 0)]
