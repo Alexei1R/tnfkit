@@ -8,9 +8,25 @@ import Engine
 import Foundation
 import MetalKit
 import SwiftUI
+import Combine
+
+// Separate the class identity from MainActor isolation
+public final class TNFEngineIdentifier: Equatable, Hashable {
+    let id = UUID()
+    
+    public static func == (lhs: TNFEngineIdentifier, rhs: TNFEngineIdentifier) -> Bool {
+        return lhs.id == rhs.id
+    }
+    
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+}
 
 @MainActor
-public final class TNFEngine {
+public final class TNFEngine: ObservableObject {
+    // Use identifier for equality checking
+    public let identifier = TNFEngineIdentifier()
     private var device: MTLDevice?
 
     private var toolManager: ToolManager
@@ -20,6 +36,9 @@ public final class TNFEngine {
 
     //NOTE: Renderer stuff
     private let viewer: ViewerManager
+    
+    // For bone assignment and animation
+    private var boneViewModelReference: Any?
 
     public init?() {
         guard let device = MTLCreateSystemDefaultDevice() else {
@@ -70,6 +89,40 @@ public final class TNFEngine {
 
     public func getMetalDevice() -> MTLDevice? {
         return device
+    }
+    
+    public func getSelectableModel() -> Any? {
+        return viewer.getSelectableModel()
+    }
+    
+    public func registerBoneViewModel(_ viewModel: Any) {
+        self.boneViewModelReference = viewModel
+        
+        // Pass selectable model to the view model
+        if let selectionModel = getSelectableModel() {
+            print("🔄 Found selectable model: \(selectionModel)")
+            
+            if let object = viewModel as? NSObject {
+                // Try KVC first (most reliable in Swift)
+                if object.responds(to: #selector(NSObject.setValue(_:forKey:))) {
+                    print("🔄 Setting model via KVC")
+                    object.setValue(selectionModel, forKey: "selectionModel")
+                } else {
+                    // Fall back to selector approach
+                    print("🔄 Setting model via selector")
+                    let selector = NSSelectorFromString("setSelectionModel:")
+                    if object.responds(to: selector) {
+                        object.perform(selector, with: selectionModel)
+                    } else {
+                        print("❌ View model doesn't respond to setSelectionModel:")
+                    }
+                }
+            } else {
+                print("❌ View model is not an NSObject")
+            }
+        } else {
+            print("❌ No selectable model found")
+        }
     }
 
     //NOTE: Below are the methods that are used to interact with the engine from the Editor

@@ -33,7 +33,7 @@ public struct Vertex {
     }
 }
 
-public final class SelectableModel: Renderable, @unchecked Sendable {
+@objc public final class SelectableModel: NSObject, Renderable, @unchecked Sendable {
     // Core model components
     private var model3D: Model3D?
     private var vertexBufferHandle: Handle?
@@ -80,8 +80,92 @@ public final class SelectableModel: Renderable, @unchecked Sendable {
     public var hasSelection: Bool {
         selectionStates.contains(where: { $0 > 0 })
     }
+    
+    @objc public func getSelectedVertexIndices() -> [Int] {
+        var indices: [Int] = []
+        for (index, state) in selectionStates.enumerated() {
+            if state > 0 {
+                indices.append(index)
+            }
+        }
+        return indices
+    }
+    
+    @objc public func getTotalVertexCount() -> Int {
+        return vertexCount
+    }
+    
+    @objc public func updateVertexPosition(index: Int, transform: matrix_float4x4) {
+        guard index >= 0 && index < selectionStates.count else {
+            return
+        }
+        
+        // Process in batches to reduce log spam
+        let shouldLog = index % 500 == 0
+        if shouldLog {
+            Log.info("Animating vertex \(index) with transform")
+        }
+        
+        // Actually transform the vertex position if we have positions array
+        if var positions = self.positions, index < positions.count {
+            // Get the original position
+            let originalPosition = positions[index]
+            
+            // Convert to vec4 for matrix multiplication
+            var position4 = vec4f(originalPosition.x, originalPosition.y, originalPosition.z, 1.0)
+            
+            // Apply the bone transformation matrix
+            position4 = transform * position4
+            
+            // Update the position
+            positions[index] = vec3f(position4.x, position4.y, position4.z)
+            
+            // Store the updated positions
+            self.positions = positions
+            
+            // Mark the vertex as modified for visualization
+            selectionStates[index] = 2  // Use a different value than selection (1)
+            hasModifiedSelection = true
+            
+            // Make sure to update the vertex buffer for rendering
+            if var meshVertices = self.meshVertices as? [Vertex], index < meshVertices.count {
+                // Create a copy of the vertex with the updated position
+                var updatedVertex = meshVertices[index]
+                updatedVertex.position = positions[index]
+                meshVertices[index] = updatedVertex
+                
+                // Store the updated vertex array
+                self.meshVertices = meshVertices
+                
+                // Update the vertex buffer if possible
+                if let bufferStack = bufferStack, 
+                   let vertexBufferHandle = vertexBufferHandle {
+                    _ = bufferStack.updateBuffer(handle: vertexBufferHandle, data: meshVertices)
+                }
+            }
+            
+            // Reset the selection state after a short delay (for visualization)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+                guard let self = self else { return }
+                self.selectionStates[index] = 0
+                self.hasModifiedSelection = true
+            }
+        } else {
+            // Fallback to just highlighting if we can't modify the positions
+            selectionStates[index] = 2  // Use a different value than selection (1)
+            hasModifiedSelection = true
+            
+            // And reset it after a delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                guard let self = self else { return }
+                self.selectionStates[index] = 0
+                self.hasModifiedSelection = true
+            }
+        }
+    }
 
     public init(modelPath: String) {
+        super.init()
         loadModel(path: modelPath)
     }
 

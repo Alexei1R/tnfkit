@@ -52,7 +52,7 @@ struct ObjectLayerView: View {
                 Button(action: {
                     if !inputText.isEmpty {
                         let entity = viewModel.createEntity(named: UUID().uuidString)
-                        viewModel.addComponent(MeshComponent(name: inputText), entity)
+                        _ = viewModel.addComponent(MeshComponent(name: inputText), entity)
                         inputText = ""
                     }
                 }) {

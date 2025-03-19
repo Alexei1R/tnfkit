@@ -13,6 +13,7 @@ public enum EngineTools {
     case select
     case control
     case add
+    case transform
 
     public func toString() -> String {
         switch self {
@@ -24,6 +25,8 @@ public enum EngineTools {
             return "Control"
         case .add:
             return "Add"
+        case .transform:
+            return "Transform"
         }
     }
 }
@@ -43,6 +46,7 @@ public class ToolManager {
         tools[.select] = selectionTool
 
         tools[.control] = BasicTool(name: "Control Tool")
+        tools[.transform] = BasicTool(name: "Transform Tool")
     }
 
     public func selectTool(_ toolType: EngineTools) {

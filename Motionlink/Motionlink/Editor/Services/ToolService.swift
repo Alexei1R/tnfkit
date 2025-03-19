@@ -62,7 +62,7 @@ class ToolService {
                 icon: "scribble.variable",
                 group: .selection,
                 engineTool: .select,
-                supportedModes: [.object]
+                supportedModes: [.object, .bone]
             )
         )
         
@@ -73,7 +73,7 @@ class ToolService {
                 icon: "move.3d",
                 group: .manipulation,
                 engineTool: .control,
-                supportedModes: [.object]
+                supportedModes: [.object, .bone]
             )
         )
         
@@ -85,6 +85,17 @@ class ToolService {
                 group: .creation,
                 engineTool: .add,
                 supportedModes: [.object]
+            )
+        )
+        
+        // Transform tool for moving objects
+        registerTool(
+            ApplicationTool(
+                name: "Transform",
+                icon: "arrow.up.and.down.and.arrow.left.and.right",
+                group: .manipulation,
+                engineTool: .transform,
+                supportedModes: [.object, .bone]
             )
         )
         

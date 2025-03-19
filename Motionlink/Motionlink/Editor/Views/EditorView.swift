@@ -12,6 +12,8 @@ struct EditorView: View {
 
     // UI elements
     @StateObject var toolSelector = ToolSelector()
+    
+    // No need for isInitialized flag anymore
     @State private var rightPanelWidth: CGFloat = 0
     
     let layersWidthPercentage: ClosedRange<CGFloat> = 0.33...0.50
@@ -79,6 +81,7 @@ struct EditorView: View {
                             geometry: geometry,
                             widthPercentageRange: layersWidthPercentage
                         )
+                        .environmentObject(engine!)
                         .frame(width: rightPanelWidth, height: geometry.size.height)
                         .transition(.move(edge: .trailing))
                     }
@@ -110,6 +113,7 @@ struct EditorView: View {
         .ignoresSafeArea()
         .task {
             if engine == nil {
+                // Initialize engine
                 engine = TNFEngine()
                 
                 // Set up tool selection handler in the Editor
@@ -119,6 +123,12 @@ struct EditorView: View {
                     Task { @MainActor in
                         engine.selectionToolCallback(toolType: engineTool)
                     }
+                }
+                
+                // Wait briefly then set initial tool to Select
+                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+                if let selectTool = ToolService.shared.findTool(byName: "Select") {
+                    toolSelector.selectTool(selectTool)
                 }
             }
         }

@@ -6,11 +6,14 @@
 import Foundation
 import SwiftUI
 import simd
+import tnfkit
 
 struct BoneAssignmentView: View {
     @StateObject private var viewModel = BoneViewModel()
+    @EnvironmentObject var tnfEngine: TNFEngine
     
     var body: some View {
+        // Make sure to select bone mode and select tool when view appears
         ZStack(alignment: .bottomTrailing) {
             VStack(spacing: 6) {
                 if let animation = viewModel.selectedAnimation {
@@ -73,6 +76,24 @@ struct BoneAssignmentView: View {
                                 viewModel.showAnimationModal = true
                             }
                         }
+                        
+                        // Get model directly from the engine
+                        if let model = tnfEngine.getSelectableModel() {
+                            print("🦴 BoneAssignmentView setting model directly")
+                            viewModel.selectionModel = model
+                        } else {
+                            print("❌ BoneAssignmentView couldn't get model from engine")
+                        }
+                        
+                        // Make sure to select the right tool when entering bone mode
+                        if let selectTool = ToolService.shared.findTool(byName: "Select") {
+                            DispatchQueue.main.async {
+                                ToolService.shared.selectTool(selectTool)
+                            }
+                        }
+                        
+                        // Debug print
+                        print("🦴 BoneAssignmentView appeared, engine: \(tnfEngine), model: \(tnfEngine.getSelectableModel() != nil ? "available" : "nil")")
                     }
                 }
             }
@@ -126,37 +147,91 @@ struct BoneHierarchyView: View {
                 
                 let joint = viewModel.bones[selectedIndex]
                 
-                HStack(spacing: 8) {
-                    Button(action: {
-                    }) {
-                        Text("Assign")
-                            .font(.system(size: 11, weight: .medium))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(4)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(joint.name)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.white)
+                VStack(spacing: 8) {
+                    HStack(spacing: 8) {
+                        Button(action: {
+                            print("🦴 Assign button pressed, bone index: \(viewModel.selectedBoneIndex ?? -1)")
+                            print("🦴 Model exists: \(viewModel.selectionModel != nil)")
+                            viewModel.assignSelectedVerticesToBone()
+                        }) {
+                            Text("Assign")
+                                .font(.system(size: 11, weight: .medium))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.blue)
+                                .foregroundColor(.white)
+                                .cornerRadius(4)
+                        }
                         
-                        if let parentIndex = joint.parentIndex,
-                           parentIndex >= 0,
-                           parentIndex < viewModel.bones.count {
-                            Text("Parent: \(viewModel.bones[parentIndex].name)")
-                                .font(.system(size: 10))
-                                .foregroundColor(.gray)
-                        } else {
-                            Text("Root bone")
-                                .font(.system(size: 10))
-                                .foregroundColor(.gray)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(joint.name)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.white)
+                            
+                            if let parentIndex = joint.parentIndex,
+                               parentIndex >= 0,
+                               parentIndex < viewModel.bones.count {
+                                Text("Parent: \(viewModel.bones[parentIndex].name)")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.gray)
+                            } else {
+                                Text("Root bone")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.gray)
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        let assignmentCount = viewModel.getAssignmentCountForBone(selectedIndex)
+                        if assignmentCount > 0 {
+                            Text("\(assignmentCount)")
+                                .font(.system(size: 11))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color.green.opacity(0.3))
+                                )
                         }
                     }
                     
-                    Spacer()
+                    if !viewModel.assignmentFeedback.isEmpty {
+                        Text(viewModel.assignmentFeedback)
+                            .font(.system(size: 10))
+                            .foregroundColor(.orange)
+                            .padding(.vertical, 2)
+                    }
+                    
+                    if let animation = viewModel.selectedAnimation, animation.frames.count > 1 {
+                        HStack(spacing: 8) {
+                            Button(action: {
+                                print("🎬 Animation button pressed, isPlaying: \(viewModel.isPlaying)")
+                                print("🎬 Selected animation: \(viewModel.selectedAnimation?.name ?? "none")")
+                                print("🎬 Assigned bones: \(viewModel.boneVertexAssignments.keys.count)")
+                                
+                                if viewModel.isPlaying {
+                                    viewModel.stopAnimation()
+                                } else {
+                                    viewModel.playAnimation()
+                                }
+                            }) {
+                                Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.white)
+                                    .frame(width: 24, height: 20)
+                                    .background(Color.blue.opacity(0.7))
+                                    .cornerRadius(4)
+                            }
+                            
+                            Text("Frame: \(viewModel.currentFrameIndex + 1)/\(animation.frames.count)")
+                                .font(.system(size: 10))
+                                .foregroundColor(.gray)
+                            
+                            Spacer()
+                        }
+                    }
                 }
                 .padding(8)
                 .background(

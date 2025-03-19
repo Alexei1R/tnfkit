@@ -119,8 +119,33 @@ class ViewerManager {
         let grid = GridRenderer(gridSize: 20.0, cellSize: 1.0, minorCellCount: 5)
         self.grid = grid
         renderer.addRenderable(grid)
+        
+        // Load girl model by default
+        loadDefaultModel()
+        
+        // Select the selection tool by default
+        toolManager.selectTool(.select)
 
         updateToolState()
+    }
+    
+    private func loadDefaultModel() {
+        // Create a selectable model for the girl mesh
+        let girlModel = SelectableModel(modelPath: "girl")
+        
+        // Scale down the model by 0.01 to make it fit in the viewport
+        var transform = mat4f.identity
+        // Apply scaling directly to the matrix elements
+        transform.columns.0.x = 0.01
+        transform.columns.1.y = 0.01
+        transform.columns.2.z = 0.01
+        girlModel.transform = transform
+        
+        // Add to renderer
+        selectableModels.append(girlModel)
+        renderer?.addRenderable(girlModel)
+        
+        Log.info("Loaded default girl model with scale 0.01")
     }
 
     func resize(size: vec2i) {
@@ -190,5 +215,9 @@ class ViewerManager {
 
     public func debugButton() {
         Log.error("Debug button pressed")
+    }
+    
+    public func getSelectableModel() -> Any? {
+        return selectableModels.first
     }
 }
