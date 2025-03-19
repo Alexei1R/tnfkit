@@ -22,6 +22,7 @@ class ViewerManager {
         self.cameraController.setRotationSensitivity(5.0)
         self.cameraController.setZoomSensitivity(5.0)
         self.cameraController.setPanSensitivity(10.0)
+        self.cameraController.setDebugMode(true)
 
     }
 

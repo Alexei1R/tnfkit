@@ -24,6 +24,7 @@ public class CameraController {
     private var lastDragPosition: vec2f? = nil
 
     // State flags
+    // Set to false in production to reduce logging
     private var debugMode: Bool = false
     private var isEnabled: Bool = true
 
@@ -54,9 +55,9 @@ public class CameraController {
                 switch event {
                 case .began(let touches):
                     if touches.count == 1 {
-                        // Single touch - start tracking for rotation
                         self.lastDragPosition = touches[0].position
-                        if self.debugMode { Log.info("Touch began at \(touches[0].position)") }
+                    } else {
+                        self.lastDragPosition = nil
                     }
 
                 case .moved(let touches):
@@ -65,24 +66,26 @@ public class CameraController {
                         let currentPos = touches[0].position
                         let deltaX = currentPos.x - lastPos.x
                         let deltaY = currentPos.y - lastPos.y
+                        
+                        // Only apply rotation if there's meaningful movement
+                        // This prevents tiny jitters from getting logged
+                        if abs(deltaX) > 0.001 || abs(deltaY) > 0.001 {
+                            // Apply rotation with higher sensitivity
+                            let deltaTheta = -deltaX * self.rotationSensitivity
+                            let deltaPhi = -deltaY * self.rotationSensitivity
 
-                        // Apply rotation with higher sensitivity
-                        let deltaTheta = -deltaX * self.rotationSensitivity
-                        let deltaPhi = -deltaY * self.rotationSensitivity
-
-                        self.camera.orbit(deltaTheta: deltaTheta, deltaPhi: deltaPhi)
-                        if self.debugMode {
-                            Log.info("Camera rotated: θ=\(deltaTheta), φ=\(deltaPhi)")
+                            self.camera.orbit(deltaTheta: deltaTheta, deltaPhi: deltaPhi)
+                            if self.debugMode {
+                                Log.info("Camera rotated: θ=\(deltaTheta), φ=\(deltaPhi)")
+                            }
+                            
+                            // Update last position
+                            self.lastDragPosition = currentPos
                         }
-
-                        // Update last position
-                        self.lastDragPosition = currentPos
                     }
 
                 case .ended, .cancelled:
-                    // Reset tracking
                     self.lastDragPosition = nil
-                    if self.debugMode { Log.info("Touch ended/cancelled") }
                 }
             }
             .store(in: &cancellables)
@@ -94,15 +97,20 @@ public class CameraController {
                 guard let self = self, self.isEnabled else { return }
 
                 if case let .pinch(scale, velocity, center, state) = event {
-                    Log.info("Pinch event: scale=\(scale), velocity=\(velocity), center=\(center)")
+                    if self.debugMode {
+                        Log.info(
+                            "Pinch event: scale=\(scale), velocity=\(velocity), center=\(center)")
+                    }
                     switch state {
                     case .began:
                         if self.debugMode { Log.info("Zoom began with scale \(scale)") }
                     case .changed:
                         // Calculate zoom delta based on pinch scale
+                        // Use a more consistent formula with better normalization
                         let zoomFactor = scale - 1.0
-                        let zoomDelta =
-                            -zoomFactor * self.zoomSensitivity * (self.camera.radius / 10.0)
+                        let scaledSensitivity =
+                            self.zoomSensitivity * min(self.camera.radius / 5.0, 10.0)
+                        let zoomDelta = -zoomFactor * scaledSensitivity
 
                         self.camera.zoom(delta: zoomDelta)
                         if self.debugMode { Log.info("Camera zoomed: delta=\(zoomDelta)") }
@@ -147,7 +155,6 @@ public class CameraController {
     // Enable or disable camera control
     public func setEnabled(_ enabled: Bool) {
         isEnabled = enabled
-        if debugMode { Log.info("Camera controller \(enabled ? "enabled" : "disabled")") }
     }
 
     // Public methods to adjust sensitivities

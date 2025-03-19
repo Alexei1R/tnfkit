@@ -162,8 +162,12 @@ public class ViewportCoordinator: NSObject, MTKViewDelegate {
     private let engine: TNFEngine
     private let eventPublisher: EventPublisher
     private var lastPanLocation: CGPoint = .zero
+    private var lastPanTranslation: CGPoint = .zero
     private var initialScale: CGFloat = 1.0
     private var isHandlingDirectTouch: Bool = false
+    private var activeTouchCount: Int = 0
+    private var twoFingerMode: Bool = false
+    private var gestureInProgress: Bool = false
 
     public init(engine: TNFEngine, eventPublisher: EventPublisher) {
         self.engine = engine
@@ -195,20 +199,34 @@ extension ViewportCoordinator: UIGestureRecognizerDelegate {
         _ gestureRecognizer: UIGestureRecognizer,
         shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
-        if (gestureRecognizer is UIPinchGestureRecognizer
-            && otherGestureRecognizer is UIRotationGestureRecognizer)
-            || (gestureRecognizer is UIRotationGestureRecognizer
-                && otherGestureRecognizer is UIPinchGestureRecognizer)
-        {
+        // Always allow multi-touch gestures to work together
+        let multiTouchGestures = [UIPinchGestureRecognizer.self, UIRotationGestureRecognizer.self, UIPanGestureRecognizer.self]
+        
+        // Check if both are multi-touch gestures
+        let isFirstMultiTouch = multiTouchGestures.contains { gestureRecognizer.isKind(of: $0) }
+        let isSecondMultiTouch = multiTouchGestures.contains { otherGestureRecognizer.isKind(of: $0) }
+        
+        // Allow all multi-touch gestures to work together
+        if isFirstMultiTouch && isSecondMultiTouch {
+            // If pan is involved, make sure it has at least 2 touches
+            if gestureRecognizer is UIPanGestureRecognizer {
+                let panGR = gestureRecognizer as! UIPanGestureRecognizer
+                return panGR.numberOfTouches >= 2
+            }
+            
+            if otherGestureRecognizer is UIPanGestureRecognizer {
+                let panGR = otherGestureRecognizer as! UIPanGestureRecognizer
+                return panGR.numberOfTouches >= 2
+            }
+            
             return true
         }
-
-        if gestureRecognizer is UITapGestureRecognizer
-            || otherGestureRecognizer is UITapGestureRecognizer
-        {
+        
+        // Always reject tap recognizers working with other gestures
+        if gestureRecognizer is UITapGestureRecognizer || otherGestureRecognizer is UITapGestureRecognizer {
             return false
         }
-
+        
         return false
     }
 
@@ -216,15 +234,32 @@ extension ViewportCoordinator: UIGestureRecognizerDelegate {
         _ gestureRecognizer: UIGestureRecognizer,
         shouldReceive touch: UITouch
     ) -> Bool {
-        if isHandlingDirectTouch {
+        // Always prioritize pinch/rotation gestures
+        if gestureRecognizer is UIPinchGestureRecognizer || 
+           gestureRecognizer is UIRotationGestureRecognizer {
+            return true
+        }
+        
+        // If a gesture is already in progress, only allow related gestures
+        if gestureInProgress {
+            // Only allow pan during gesture in progress if it's a multi-touch pan
+            if let panGR = gestureRecognizer as? UIPanGestureRecognizer {
+                return activeTouchCount >= 2
+            }
             return false
         }
-
-        if let tapGesture = gestureRecognizer as? UITapGestureRecognizer,
-            tapGesture.state != .possible && tapGesture.state != .ended
-                && tapGesture.state != .cancelled
-        {
-            tapGesture.state = .cancelled
+        
+        // For pan gestures not during gesture progress
+        if let panGR = gestureRecognizer as? UIPanGestureRecognizer {
+            if activeTouchCount >= 2 {
+                return true
+            }
+            return !isHandlingDirectTouch
+        }
+        
+        // For single touches during direct touch handling, block other gestures
+        if isHandlingDirectTouch && activeTouchCount == 1 {
+            return false
         }
 
         return true
@@ -234,7 +269,23 @@ extension ViewportCoordinator: UIGestureRecognizerDelegate {
 @MainActor
 extension ViewportCoordinator: TouchEventDelegate {
     public func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?, in view: UIView) {
-        isHandlingDirectTouch = true
+        if let allTouches = event?.allTouches {
+            let oldTouchCount = activeTouchCount
+            activeTouchCount = allTouches.count
+            
+            if activeTouchCount >= 2 {
+                twoFingerMode = true
+                isHandlingDirectTouch = false
+                gestureInProgress = true
+            } else if oldTouchCount >= 2 && activeTouchCount == 1 {
+                isHandlingDirectTouch = false
+                twoFingerMode = true
+            } else if !gestureInProgress && activeTouchCount == 1 {
+                isHandlingDirectTouch = true
+                twoFingerMode = false
+            }
+        }
+        
         let touchPoints = touches.map { touch -> TouchPoint in
             let position = PositionNormalizer.normalizePosition(
                 touch.location(in: view), in: view)
@@ -246,38 +297,71 @@ extension ViewportCoordinator: TouchEventDelegate {
                 timestamp: touch.timestamp
             )
         }
-        eventPublisher.emitTouchEvent(.began(touches: touchPoints))
+        
+        if !gestureInProgress || (activeTouchCount == 1 && !twoFingerMode) {
+            eventPublisher.emitTouchEvent(.began(touches: touchPoints))
+        }
     }
 
     public func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?, in view: UIView) {
-        let touchPoints = touches.map { touch -> TouchPoint in
-            let position = PositionNormalizer.normalizePosition(
-                touch.location(in: view), in: view)
-            return TouchPoint(
-                position: position,
-                pressure: Float(touch.force / max(touch.maximumPossibleForce, 0.0001)),
-                majorRadius: Float(touch.majorRadius),
-                type: TouchType(from: touch.type),
-                timestamp: touch.timestamp
-            )
+        if let allTouches = event?.allTouches {
+            activeTouchCount = allTouches.count
         }
-        eventPublisher.emitTouchEvent(.moved(touches: touchPoints))
+        
+        if gestureInProgress && activeTouchCount == 1 {
+            return
+        }
+        
+        // Only emit move events for single-finger rotation or explicit two-finger mode
+        if (activeTouchCount == 1 && !twoFingerMode) {
+            let touchPoints = touches.map { touch -> TouchPoint in
+                let position = PositionNormalizer.normalizePosition(
+                    touch.location(in: view), in: view)
+                return TouchPoint(
+                    position: position,
+                    pressure: Float(touch.force / max(touch.maximumPossibleForce, 0.0001)),
+                    majorRadius: Float(touch.majorRadius),
+                    type: TouchType(from: touch.type),
+                    timestamp: touch.timestamp
+                )
+            }
+            eventPublisher.emitTouchEvent(.moved(touches: touchPoints))
+        }
     }
 
     public func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?, in view: UIView) {
-        let touchPoints = touches.map { touch -> TouchPoint in
-            let position = PositionNormalizer.normalizePosition(
-                touch.location(in: view), in: view)
-            return TouchPoint(
-                position: position,
-                pressure: Float(touch.force / max(touch.maximumPossibleForce, 0.0001)),
-                majorRadius: Float(touch.majorRadius),
-                type: TouchType(from: touch.type),
-                timestamp: touch.timestamp
-            )
+        if let allTouches = event?.allTouches {
+            let oldTouchCount = activeTouchCount
+            
+            if allTouches.isEmpty || allTouches.count == touches.count {
+                activeTouchCount = 0
+                isHandlingDirectTouch = false
+                twoFingerMode = false
+                gestureInProgress = false
+                
+                let touchPoints = touches.map { touch -> TouchPoint in
+                    let position = PositionNormalizer.normalizePosition(
+                        touch.location(in: view), in: view)
+                    return TouchPoint(
+                        position: position,
+                        pressure: Float(touch.force / max(touch.maximumPossibleForce, 0.0001)),
+                        majorRadius: Float(touch.majorRadius),
+                        type: TouchType(from: touch.type),
+                        timestamp: touch.timestamp
+                    )
+                }
+                eventPublisher.emitTouchEvent(.ended(touches: touchPoints))
+            } else {
+                // Just update remaining touch count but don't emit events during gesture transition
+                activeTouchCount = allTouches.count
+                
+                if oldTouchCount >= 2 && activeTouchCount == 1 {
+                    // Transitioning from multi-touch to single touch - maintain gesture mode
+                    twoFingerMode = true
+                    isHandlingDirectTouch = false
+                }
+            }
         }
-        eventPublisher.emitTouchEvent(.ended(touches: touchPoints))
-        isHandlingDirectTouch = false
     }
 
     public func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?, in view: UIView) {
@@ -293,7 +377,11 @@ extension ViewportCoordinator: TouchEventDelegate {
             )
         }
         eventPublisher.emitTouchEvent(.cancelled(touches: touchPoints))
+        
+        activeTouchCount = 0
         isHandlingDirectTouch = false
+        twoFingerMode = false
+        gestureInProgress = false
     }
 }
 
@@ -382,37 +470,73 @@ extension ViewportCoordinator {
         {
             return
         }
+        
+        let touchCount = sender.numberOfTouches
+        
+        if sender.state == .began {
+            if touchCount >= 2 {
+                gestureInProgress = true
+                twoFingerMode = true
+                isHandlingDirectTouch = false
+                lastPanTranslation = .zero
+                sender.setTranslation(.zero, in: view)
+            } else if !gestureInProgress && touchCount == 1 {
+                isHandlingDirectTouch = true
+                twoFingerMode = false
+            }
+        }
 
         let location = sender.location(in: view)
         let velocity = sender.velocity(in: view)
         let translation = sender.translation(in: view)
-
+        
+        // Get normalized position for reference
         let normalizedPosition = PositionNormalizer.normalizePosition(location, in: view)
-        let normalizedVelocity = PositionNormalizer.normalizeVector(
-            vec2f(Float(velocity.x), Float(velocity.y)),
-            in: view
-        )
-        let normalizedTranslation = PositionNormalizer.normalizeVector(
-            vec2f(Float(translation.x), Float(translation.y)),
-            in: view
-        )
+        
+        // For translations and velocities, use pixel values for more precision
+        let rawTranslation = vec2f(Float(translation.x), Float(translation.y))
+        let rawVelocity = vec2f(Float(velocity.x), Float(velocity.y))
+        
+        // Get state from gesture recognizer
+        
         let state = GestureState(from: sender.state)
 
-        eventPublisher.emitDrag(
-            translation: normalizedTranslation,
-            velocity: normalizedVelocity,
-            state: state,
-            position: normalizedPosition
-        )
+        if touchCount == 1 && !twoFingerMode && !gestureInProgress {
+            // Single finger drag = camera rotation
+            let normalizedTranslation = PositionNormalizer.normalizeVector(rawTranslation, in: view)
+            let normalizedVelocity = PositionNormalizer.normalizeVector(rawVelocity, in: view)
+            
+            eventPublisher.emitDrag(
+                translation: normalizedTranslation,
+                velocity: normalizedVelocity,
+                state: state,
+                position: normalizedPosition
+            )
+        } else if touchCount >= 2 || (touchCount == 1 && twoFingerMode) {
+            // For two-finger pan gestures
+            let normalizedTranslation = PositionNormalizer.normalizeVector(rawTranslation, in: view)
+            
+            eventPublisher.emitPan(
+                translation: normalizedTranslation,
+                velocity: rawVelocity,
+                touchCount: max(2, touchCount),
+                state: state,
+                position: normalizedPosition
+            )
+            
+            if state == .changed {
+                sender.setTranslation(.zero, in: view)
+            }
+        }
 
-        eventPublisher.emitPan(
-            translation: normalizedTranslation,
-            velocity: normalizedVelocity,
-            touchCount: sender.numberOfTouches,
-            state: state,
-            position: normalizedPosition
-        )
-
+        if sender.state == .ended || sender.state == .cancelled {
+            sender.setTranslation(.zero, in: view)
+            
+            if touchCount <= 1 {
+                gestureInProgress = false
+            }
+        }
+        
         if sender.state == .began {
             lastPanLocation = location
         }
@@ -426,20 +550,40 @@ extension ViewportCoordinator {
         {
             return
         }
+        
+        if sender.state == .began {
+            gestureInProgress = true
+            twoFingerMode = true
+            isHandlingDirectTouch = false
+            initialScale = sender.scale
+        }
 
         let location = sender.location(in: view)
         let normalizedCenter = PositionNormalizer.normalizePosition(location, in: view)
         let state = GestureState(from: sender.state)
+        
+        let adjustedScale: Float
+        if sender.state == .began {
+            adjustedScale = 1.0
+        } else {
+            let relativeScale = sender.scale / max(initialScale, 0.001)
+            adjustedScale = Float(relativeScale)
+        }
 
         eventPublisher.emitPinch(
-            scale: Float(sender.scale),
+            scale: adjustedScale,
             velocity: Float(sender.velocity),
             center: normalizedCenter,
             state: state
         )
-
-        if sender.state == .began {
-            initialScale = sender.scale
+        
+        if sender.state == .ended || sender.state == .cancelled {
+            initialScale = 1.0
+            sender.scale = 1.0
+            
+            if sender.numberOfTouches <= 1 {
+                gestureInProgress = false
+            }
         }
     }
 
@@ -450,6 +594,12 @@ extension ViewportCoordinator {
             && sender.state != .cancelled
         {
             return
+        }
+        
+        if sender.state == .began {
+            gestureInProgress = true
+            twoFingerMode = true
+            isHandlingDirectTouch = false
         }
 
         let location = sender.location(in: view)
@@ -462,6 +612,14 @@ extension ViewportCoordinator {
             center: normalizedCenter,
             state: state
         )
+        
+        if sender.state == .ended || sender.state == .cancelled {
+            sender.rotation = 0
+            
+            if sender.numberOfTouches <= 1 {
+                gestureInProgress = false
+            }
+        }
     }
 }
 
