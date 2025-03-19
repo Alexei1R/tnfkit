@@ -6,10 +6,7 @@
 import Combine
 import CoreGraphics
 import Foundation
-
-#if os(iOS)
-    import UIKit
-#endif
+import UIKit
 
 // NOTE: - Event Types
 
@@ -20,18 +17,16 @@ public enum GestureState: Sendable {
     case ended
     case cancelled
 
-    #if os(iOS)
-        /// Convert from UIGestureRecognizer.State
-        public init(from uiState: UIGestureRecognizer.State) {
-            switch uiState {
-            case .began: self = .began
-            case .changed: self = .changed
-            case .ended: self = .ended
-            case .cancelled, .failed: self = .cancelled
-            default: self = .cancelled
-            }
+    /// Convert from UIGestureRecognizer.State
+    public init(from uiState: UIGestureRecognizer.State) {
+        switch uiState {
+        case .began: self = .began
+        case .changed: self = .changed
+        case .ended: self = .ended
+        case .cancelled, .failed: self = .cancelled
+        default: self = .cancelled
         }
-    #endif
+    }
 }
 
 /// Direction for swipe gestures
@@ -41,18 +36,16 @@ public enum SwipeDirection: Sendable {
     case up
     case down
 
-    #if os(iOS)
-        /// Convert from UISwipeGestureRecognizer.Direction
-        public init(from uiDirection: UISwipeGestureRecognizer.Direction) {
-            switch uiDirection {
-            case .left: self = .left
-            case .right: self = .right
-            case .up: self = .up
-            case .down: self = .down
-            default: self = .right  // Default
-            }
+    /// Convert from UISwipeGestureRecognizer.Direction
+    public init(from uiDirection: UISwipeGestureRecognizer.Direction) {
+        switch uiDirection {
+        case .left: self = .left
+        case .right: self = .right
+        case .up: self = .up
+        case .down: self = .down
+        default: self = .right  // Default
         }
-    #endif
+    }
 }
 
 /// Represents types of touch input
@@ -62,17 +55,15 @@ public enum TouchType: Sendable {
     case pencil
     case unknown
 
-    #if os(iOS)
-        /// Convert from UITouch.TouchType
-        public init(from uiTouchType: UITouch.TouchType) {
-            switch uiTouchType {
-            case .direct: self = .direct
-            case .indirect: self = .indirect
-            case .pencil: self = .pencil
-            default: self = .unknown
-            }
+    /// Convert from UITouch.TouchType
+    public init(from uiTouchType: UITouch.TouchType) {
+        switch uiTouchType {
+        case .direct: self = .direct
+        case .indirect: self = .indirect
+        case .pencil: self = .pencil
+        default: self = .unknown
         }
-    #endif
+    }
 }
 
 /// Information about a single touch point
@@ -83,18 +74,16 @@ public struct TouchPoint: Sendable {
     public let type: TouchType
     public let timestamp: TimeInterval
 
-    #if os(iOS)
-        /// Create a TouchPoint from UITouch
-        @MainActor
-        public init(from touch: UITouch, in view: UIView) {
-            let cgPosition = touch.location(in: view)
-            self.position = vec2f(Float(cgPosition.x), Float(cgPosition.y))
-            self.pressure = Float(touch.force / max(touch.maximumPossibleForce, 0.0001))
-            self.majorRadius = Float(touch.majorRadius)
-            self.type = TouchType(from: touch.type)
-            self.timestamp = touch.timestamp
-        }
-    #endif
+    /// Create a TouchPoint from UITouch
+    @MainActor
+    public init(from touch: UITouch, in view: UIView) {
+        let cgPosition = touch.location(in: view)
+        self.position = vec2f(Float(cgPosition.x), Float(cgPosition.y))
+        self.pressure = Float(touch.force / max(touch.maximumPossibleForce, 0.0001))
+        self.majorRadius = Float(touch.majorRadius)
+        self.type = TouchType(from: touch.type)
+        self.timestamp = touch.timestamp
+    }
 
     public init(
         position: vec2f, pressure: Float = 1.0, majorRadius: Float = 1.0,
@@ -367,3 +356,4 @@ public final class EventPublisher: Sendable {
         gestureEvents.send(.swipe(direction: direction, position: position, velocity: velocity))
     }
 }
+

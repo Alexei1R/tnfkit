@@ -94,6 +94,7 @@ public class CameraController {
                 guard let self = self, self.isEnabled else { return }
 
                 if case let .pinch(scale, velocity, center, state) = event {
+                    Log.info("Pinch event: scale=\(scale), velocity=\(velocity), center=\(center)")
                     switch state {
                     case .began:
                         if self.debugMode { Log.info("Zoom began with scale \(scale)") }
