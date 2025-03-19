@@ -73,9 +73,17 @@ class BoneViewModel: NSObject, ObservableObject {
         self.selectedBoneIndex = nil
         self.showAnimationModal = false
         createHierarchy(from: animation)
+        
         // Reset assignments when changing animations
         boneVertexAssignments = [:]
         vertexBoneAssignments = [:]
+        
+        // Reset visual joint colors in the 3D model
+        if let model = selectionModel as? NSObject, model.responds(to: #selector(NSObject.clearJointAssignments)) {
+            print("🦴 Clearing visual joint assignments")
+            model.clearJointAssignments()
+        }
+        
         stopAnimation()
         currentFrameIndex = 0
     }
@@ -171,6 +179,28 @@ class BoneViewModel: NSObject, ObservableObject {
             boneVertexAssignments[selectedBoneIndex]?.append(contentsOf: selectedVertices)
             // Remove duplicates
             boneVertexAssignments[selectedBoneIndex] = Array(Set(boneVertexAssignments[selectedBoneIndex]!))
+        }
+        
+        // Update the visual representation in the 3D model
+        if let model = selectionModel as? NSObject {
+            // Call the assignJointToVertices method if it exists
+            if model.responds(to: #selector(NSObject.assignJointToVertices(vertexIndices:jointIndex:))) {
+                print("🦴 Visually assigning joint \(selectedBoneIndex) to \(selectedVertices.count) vertices")
+                let success = model.assignJointToVertices(vertexIndices: selectedVertices, jointIndex: selectedBoneIndex)
+                if success {
+                    print("🦴 Visual joint assignment successful")
+                    
+                    // Clear the selection after assigning to make the joint colors visible
+                    if model.responds(to: #selector(NSObject.clearSelection)) {
+                        print("🦴 Clearing selection to make joint colors visible")
+                        model.clearSelection()
+                    }
+                } else {
+                    print("🦴 Visual joint assignment failed")
+                }
+            } else {
+                print("🦴 Model doesn't support visual joint assignment")
+            }
         }
         
         print("🦴 Assignment successful: \(selectedVertices.count) vertices to bone \(selectedBoneIndex)")
@@ -447,4 +477,8 @@ extension NSObject {
     @objc func getSelectedVertexIndices() -> [Int] { return [] }
     @objc func getTotalVertexCount() -> Int { return 0 }
     @objc func updateVertexPosition(index: Int, transform: matrix_float4x4) {}
+    @objc func assignJointToVertices(vertexIndices: [Int], jointIndex: Int) -> Bool { return false }
+    @objc func getJointIndexForVertex(vertexIndex: Int) -> Int { return -1 }
+    @objc func clearJointAssignments() {}
+    @objc func clearSelection() {}
 }

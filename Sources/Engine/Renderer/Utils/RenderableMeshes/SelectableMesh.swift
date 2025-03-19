@@ -40,6 +40,7 @@ public struct Vertex {
     private var indexBufferHandle: Handle?
     private var uniformBufferHandle: Handle?
     private var selectionBufferHandle: Handle?
+    private var jointColorBufferHandle: Handle?
 
     private var bufferStack: BufferStack?
     private var pipelineHandle: ResourceHandle?
@@ -51,13 +52,35 @@ public struct Vertex {
     private var positions: [vec3f]?
 
     private var selectionStates: [UInt32] = []
+    private var vertexJointIndices: [Int32] = []
     private var hasModifiedSelection: Bool = false
+    private var hasModifiedJointAssignments: Bool = false
 
     private let transformLock = NSLock()
     private var _transform: mat4f = .identity
     private var uniforms = StandardUniforms()
 
     private var highlightColor: vec3f = vec3f(1.0, 0.6, 0.2)
+    
+    // Joint colors - predefined vibrant colors for easy identification
+    private let jointColors: [vec3f] = [
+        vec3f(1.0, 0.0, 0.0),   // Red
+        vec3f(0.0, 1.0, 0.0),   // Green
+        vec3f(0.0, 0.0, 1.0),   // Blue
+        vec3f(1.0, 1.0, 0.0),   // Yellow
+        vec3f(1.0, 0.0, 1.0),   // Magenta
+        vec3f(0.0, 1.0, 1.0),   // Cyan
+        vec3f(1.0, 0.5, 0.0),   // Orange
+        vec3f(0.5, 0.0, 1.0),   // Purple
+        vec3f(0.0, 0.8, 0.5),   // Teal
+        vec3f(0.8, 0.3, 0.3),   // Indian Red
+        vec3f(0.6, 0.8, 0.2),   // Yellowish Green
+        vec3f(0.2, 0.4, 0.8),   // Steel Blue
+        vec3f(0.8, 0.7, 0.3),   // Gold
+        vec3f(0.7, 0.3, 0.8),   // Violet
+        vec3f(0.4, 0.8, 0.8),   // Light Blue
+        vec3f(0.8, 0.5, 0.2)    // Brown
+    ]
 
     public var transform: mat4f {
         get {
@@ -93,6 +116,50 @@ public struct Vertex {
     
     @objc public func getTotalVertexCount() -> Int {
         return vertexCount
+    }
+    
+    @objc public func assignJointToVertices(vertexIndices: [Int], jointIndex: Int) -> Bool {
+        guard jointIndex >= 0 else {
+            Log.warning("Invalid joint index: \(jointIndex)")
+            return false
+        }
+        
+        // Make sure we don't exceed our color array bounds
+        let colorIndex = jointIndex % jointColors.count
+        
+        // Assign the joint index to each vertex
+        for vertexIndex in vertexIndices {
+            guard vertexIndex >= 0 && vertexIndex < vertexJointIndices.count else {
+                continue
+            }
+            
+            // Store the joint index for this vertex
+            vertexJointIndices[vertexIndex] = Int32(colorIndex)
+        }
+        
+        // Mark the joint assignments as modified so the buffer gets updated
+        hasModifiedJointAssignments = true
+        
+        Log.info("Assigned joint \(jointIndex) to \(vertexIndices.count) vertices using color index \(colorIndex)")
+        return true
+    }
+    
+    @objc public func getJointIndexForVertex(vertexIndex: Int) -> Int {
+        guard vertexIndex >= 0 && vertexIndex < vertexJointIndices.count else {
+            return -1
+        }
+        
+        return Int(vertexJointIndices[vertexIndex])
+    }
+    
+    @objc public func clearJointAssignments() {
+        // Reset all vertices to unassigned (-1)
+        for i in 0..<vertexJointIndices.count {
+            vertexJointIndices[i] = -1
+        }
+        
+        hasModifiedJointAssignments = true
+        Log.info("All joint assignments cleared")
     }
     
     @objc public func updateVertexPosition(index: Int, transform: matrix_float4x4) {
@@ -207,12 +274,19 @@ public struct Vertex {
         )
 
         selectionStates = Array(repeating: 0, count: vertexCount)
+        vertexJointIndices = Array(repeating: -1, count: vertexCount) // -1 means no joint assigned
 
         selectionBufferHandle = bufferStack?.addBuffer(type: .custom, data: selectionStates)
+        jointColorBufferHandle = bufferStack?.addBuffer(type: .custom, data: vertexJointIndices)
 
-        if uniformBufferHandle == nil || selectionBufferHandle == nil {
+        if uniformBufferHandle == nil || selectionBufferHandle == nil || jointColorBufferHandle == nil {
             Log.error("Failed to create buffers for selectable model")
             return false
+        }
+
+        // Prepare the joint colors buffer that will be passed to the shader
+        let colorData = jointColors.flatMap { color -> [Float] in
+            return [color.x, color.y, color.z]
         }
 
         Log.info("SelectableModel prepared with \(vertexCount) vertices and \(indexCount) indices")
@@ -320,6 +394,12 @@ public struct Vertex {
         if hasModifiedSelection, let selectionBufferHandle = selectionBufferHandle {
             _ = bufferStack.updateBuffer(handle: selectionBufferHandle, data: selectionStates)
             hasModifiedSelection = false
+        }
+        
+        // Update joint assignment buffer if it has been modified
+        if hasModifiedJointAssignments, let jointColorBufferHandle = jointColorBufferHandle {
+            _ = bufferStack.updateBuffer(handle: jointColorBufferHandle, data: vertexJointIndices)
+            hasModifiedJointAssignments = false
         }
     }
 
@@ -547,6 +627,14 @@ public struct Vertex {
             renderEncoder.setVertexBuffer(selectionBuffer, offset: 0, index: 2)
             renderEncoder.setFragmentBuffer(selectionBuffer, offset: 0, index: 2)
         }
+        
+        // Set joint indices buffer at index 4
+        if let jointColorBufferHandle = jointColorBufferHandle,
+            let jointIndicesBuffer = bufferStack.getBuffer(handle: jointColorBufferHandle)
+        {
+            renderEncoder.setVertexBuffer(jointIndicesBuffer, offset: 0, index: 4)
+            renderEncoder.setFragmentBuffer(jointIndicesBuffer, offset: 0, index: 4)
+        }
 
         // Set highlight color as a constant for the fragment shader
         // Make sure the color is bright and vibrant
@@ -555,6 +643,22 @@ public struct Vertex {
             &brightHighlightColor,
             length: MemoryLayout<vec3f>.stride,
             index: 3
+        )
+        
+        // Pass joint colors array to the shader
+        var jointColorArray = jointColors
+        renderEncoder.setFragmentBytes(
+            &jointColorArray,
+            length: MemoryLayout<vec3f>.stride * jointColors.count,
+            index: 5
+        )
+        
+        // Pass the number of joint colors for array bounds checking
+        var jointColorCount = Int32(jointColors.count)
+        renderEncoder.setFragmentBytes(
+            &jointColorCount,
+            length: MemoryLayout<Int32>.stride,
+            index: 6
         )
 
         // Bind other buffers

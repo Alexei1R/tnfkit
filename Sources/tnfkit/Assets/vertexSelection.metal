@@ -21,6 +21,7 @@ struct VertexOut {
   float2 texCoords;
   float3 color;
   float isSelected;
+  int jointIndex;
 };
 
 struct Uniforms {
@@ -33,9 +34,9 @@ struct Uniforms {
 
 vertex VertexOut vertex_selection(VertexIn in [[stage_in]],
                                   constant Uniforms &uniforms [[buffer(1)]],
-                                  constant uint32_t *selectionStates
-                                  [[buffer(2)]],
-                                  uint vertexID [[vertex_id]]) {
+                                  constant uint32_t *selectionStates [[buffer(2)]],
+                                  uint vertexID [[vertex_id]],
+                                  constant int32_t *jointIndices [[buffer(4)]]) {
   VertexOut out;
 
   float4 worldPosition = uniforms.modelMatrix * float4(in.position, 1.0);
@@ -55,14 +56,18 @@ vertex VertexOut vertex_selection(VertexIn in [[stage_in]],
   out.color = normalize(in.normal) * 0.5 + 0.5;
 
   out.isSelected = float(selectionStates[vertexID]);
+  
+  // Add joint index to output (-1 means no joint assigned)
+  out.jointIndex = jointIndices[vertexID];
 
   return out;
 }
 
 fragment float4 fragment_selection(VertexOut in [[stage_in]],
                                    constant Uniforms &uniforms [[buffer(1)]],
-                                   constant float3 &highlightColor
-                                   [[buffer(3)]]) {
+                                   constant float3 &highlightColor [[buffer(3)]],
+                                   constant float3 *jointColors [[buffer(5)]],
+                                   constant int &jointColorCount [[buffer(6)]]) {
   float3 normal = normalize(in.normal);
 
   float3 lightDirection = normalize(uniforms.lightPosition - in.worldPosition);
@@ -80,12 +85,23 @@ fragment float4 fragment_selection(VertexOut in [[stage_in]],
 
   float3 finalColor;
 
+  // First priority: show selection highlight
   if (in.isSelected > 0.5) {
     finalColor = highlightColor;
     finalColor = finalColor * (ambient + diffuse * 0.5);
-
     finalColor += specular * 0.5;
-  } else {
+  } 
+  // Second priority: show joint assignment color
+  else if (in.jointIndex >= 0 && in.jointIndex < jointColorCount) {
+    // Get color from joint color array
+    float3 jointColor = jointColors[in.jointIndex];
+    
+    // Apply lighting but preserve vivid joint colors
+    finalColor = jointColor * (ambient + diffuse * 0.7);
+    finalColor += specular * 0.6;
+  } 
+  // Default: regular material color
+  else {
     float3 baseColor = in.color;
     finalColor = (ambient + diffuse) * baseColor + specular;
   }
