@@ -14,6 +14,7 @@ public class Renderer {
 
     //NOTE: Selection pass
     private var selectionPass: SelectionRenderPass?
+    private var debugView: DebugView?
 
     public init?() {
         guard let api = RendererAPI() else {
@@ -22,6 +23,16 @@ public class Renderer {
         }
         self.rendererAPI = api
         self.selectionPass = SelectionRenderPass(device: api.device)
+        
+        // Create debug view
+        self.debugView = DebugView(device: api.device)
+        if let debugView = debugView {
+            // Add it to renderables so it's drawn automatically
+            addRenderable(debugView)
+            
+            // Make debug view visible by default for testing
+            debugView.isVisible = true
+        }
     }
 
     //NOTE: Add a renderable to the renderer
@@ -69,6 +80,11 @@ public class Renderer {
         // End encoding and commit
         commandBuffer.endActiveEncoder()
         commandBuffer.commit()
+        
+        // Send selection texture to debug view for visualization
+        if let selectionTexture = selectionPass.getSelectionTexture(), let debugView = debugView {
+            debugView.setSelectionMask(selectionTexture)
+        }
     }
 
     public func endFrame(view: MTKView) {
@@ -108,5 +124,10 @@ public class Renderer {
 
     public func resize(size: vec2i) {
         selectionPass?.resize(width: Int(size.x), height: Int(size.y))
+        
+        // Also resize debug view
+        if let debugView = debugView {
+            debugView.resize(width: Float(size.x), height: Float(size.y))
+        }
     }
 }

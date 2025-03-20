@@ -22,7 +22,10 @@ public class Selector: @preconcurrency RenderablePrimitive {
     public var isVisible: Bool = false
     public var isSelectable: Bool = false
     public var isSelectionTool: Bool = true
-
+    
+    //NOTE: Additional pipeline for mask rendering
+    private var maskPipeline: Pipeline
+    
     //NOTE: Selection-specific properties
     private var vertexBufferHandle: Handle?
     private var outlineBufferHandle: Handle?
@@ -38,7 +41,7 @@ public class Selector: @preconcurrency RenderablePrimitive {
         self.toolManager = toolManager
         bufferStack = BufferStack(device: device, label: "Selection")
 
-        //NOTE: Configure rendering pipeline
+        //NOTE: Configure visual rendering pipeline
         var config = PipelineConfig(name: "Selector")
         config.shaderLayout = ShaderLayout(elements: [
             ShaderElement(type: .vertex, name: "vertex_main_selector"),
@@ -54,12 +57,32 @@ public class Selector: @preconcurrency RenderablePrimitive {
         config.depthWriteEnabled = false
         config.depthCompareFunction = .always
         config.blendMode = .transparent
-
+        
         guard let pipelineState = Pipeline(device: device, config: config) else {
             Log.error("Failed to create pipeline for Selector")
             return nil
         }
         self.pipeline = pipelineState
+        
+        //NOTE: Configure mask rendering pipeline
+        var maskConfig = PipelineConfig(name: "SelectorMask")
+        maskConfig.shaderLayout = ShaderLayout(elements: [
+            ShaderElement(type: .vertex, name: "vertex_main_selector_mask"),
+            ShaderElement(type: .fragment, name: "fragment_main_selector_mask"),
+        ])
+        
+        maskConfig.bufferLayouts = [(bufferLayout, 0)]
+        maskConfig.colorPixelFormat = .r8Uint
+        maskConfig.depthPixelFormat = .invalid  // No depth attachment for mask pipeline
+        maskConfig.depthWriteEnabled = false
+        maskConfig.depthCompareFunction = .always
+        maskConfig.blendMode = .opaque
+        
+        guard let maskPipelineState = Pipeline(device: device, config: maskConfig) else {
+            Log.error("Failed to create mask pipeline for Selector")
+            return nil
+        }
+        self.maskPipeline = maskPipelineState
 
         //NOTE: Create buffers for geometry
         vertexBufferHandle = bufferStack.createBuffer(
@@ -314,12 +337,30 @@ public class Selector: @preconcurrency RenderablePrimitive {
         return currentPoints
     }
 
-    //NOTE: RenderablePrimitive conformance methods for the selection
+    //NOTE: RenderablePrimitive conformance methods for the selection mask
     public func prepareSelection(commandEncoder: MTLRenderCommandEncoder, camera: Camera) {
-        // Default implementation does nothing
+        guard isVisible, vertexCount > 0,
+              let vertexBufferHandle = vertexBufferHandle
+        else { return }
+
+        //NOTE: Set up mask rendering state
+        maskPipeline.bind(to: commandEncoder)
+        commandEncoder.setCullMode(.none)
+
+        //NOTE: Bind vertices
+        if let vertBuffer = bufferStack.getBuffer(handle: vertexBufferHandle) {
+            commandEncoder.setVertexBuffer(vertBuffer, offset: 0, index: 0)
+        }
     }
 
     public func renderSelection(commandEncoder: MTLRenderCommandEncoder) {
-        // Default implementation does nothing
+        guard isVisible, vertexCount > 0 else { return }
+
+        //NOTE: Draw filled area for mask
+        commandEncoder.drawPrimitives(
+            type: primitiveType,
+            vertexStart: 0,
+            vertexCount: vertexCount
+        )
     }
 }
