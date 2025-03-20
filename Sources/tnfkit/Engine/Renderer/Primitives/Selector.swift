@@ -313,4 +313,13 @@ public class Selector: @preconcurrency RenderablePrimitive {
     public func getSelectionPolygon() -> [vec2f] {
         return currentPoints
     }
+
+    //NOTE: RenderablePrimitive conformance methods for the selection
+    public func prepareSelection(commandEncoder: MTLRenderCommandEncoder, camera: Camera) {
+        // Default implementation does nothing
+    }
+
+    public func renderSelection(commandEncoder: MTLRenderCommandEncoder) {
+        // Default implementation does nothing
+    }
 }
