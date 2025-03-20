@@ -7,28 +7,41 @@ import Foundation
 import Metal
 import simd
 
-//NOTE: Core protocol for renderable objects
 public protocol RenderablePrimitive {
-    // Core rendering resources
     var pipeline: Pipeline { get }
     var bufferStack: BufferStack { get }
     var textures: [TexturePair] { get }
 
-    // Transform properties
     var transform: mat4f { get set }
 
-    // Geometry information
     var vertexCount: Int { get }
     var indexCount: Int { get }
     var primitiveType: MTLPrimitiveType { get }
 
-    // Visibility control
     var isVisible: Bool { get set }
+    var isSelectionTool: Bool { get set }
 
-    // Core rendering methods - now with camera parameter
     func prepare(commandEncoder: MTLRenderCommandEncoder, camera: Camera)
     func render(commandEncoder: MTLRenderCommandEncoder)
     func update(deltaTime: Float)
+
+    func prepareSelection(commandEncoder: MTLRenderCommandEncoder, camera: Camera)
+    func renderSelection(commandEncoder: MTLRenderCommandEncoder)
+}
+
+extension RenderablePrimitive {
+    public var isSelectionTool: Bool {
+        get { return false }
+        set {}
+    }
+
+    public func prepareSelection(commandEncoder: MTLRenderCommandEncoder, camera: Camera) {
+        // Default implementation does nothing
+    }
+
+    public func renderSelection(commandEncoder: MTLRenderCommandEncoder) {
+        // Default implementation does nothing
+    }
 }
 
 public struct Uniforms {
@@ -52,4 +65,3 @@ public struct Uniforms {
         self.viewPosition = viewPosition
     }
 }
-

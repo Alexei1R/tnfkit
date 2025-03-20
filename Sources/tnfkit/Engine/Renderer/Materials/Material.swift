@@ -121,7 +121,7 @@ public class Material {
 
         parameters[name] = MaterialParameter(
             type: paramType,
-            value: type.getBidingIndex(),
+            value: type.getBindingIndex(),
             texturePair: texturePair
         )
 
@@ -142,7 +142,7 @@ public class Material {
 
         parameters[name] = MaterialParameter(
             type: paramType,
-            value: type.getBidingIndex(),
+            value: type.getBindingIndex(),
             textureHandle: handle
         )
 

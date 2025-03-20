@@ -41,7 +41,7 @@ public enum TextureContentType {
     case unknown
 
     // index - Fixed method name to match existing codebase usage
-    func getBidingIndex() -> Int {
+    func getBindingIndex() -> Int {
         switch self {
         case .albedo: return 0
         case .normal: return 1
@@ -499,7 +499,7 @@ public final class Texture {
     public func bindByContentType(
         to encoder: MTLRenderCommandEncoder, for stage: ShaderStage, type: TextureContentType
     ) -> Texture {
-        return bind(to: encoder, at: type.getBidingIndex(), for: stage)
+        return bind(to: encoder, at: type.getBindingIndex(), for: stage)
     }
 
     public func getMetalTexture() -> MTLTexture {
@@ -560,4 +560,3 @@ public final class Texture {
         return stencilFormats.contains(texture.pixelFormat)
     }
 }
-

@@ -173,7 +173,7 @@ public class Mesh: RenderablePrimitive {
         for texturePair in textures {
             texturePair.texture.bind(
                 to: commandEncoder,
-                at: texturePair.type.getBidingIndex(),
+                at: texturePair.type.getBindingIndex(),
                 for: .fragment
             )
         }
