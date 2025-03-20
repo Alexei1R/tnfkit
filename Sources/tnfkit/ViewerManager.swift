@@ -13,6 +13,7 @@ class ViewerManager {
     private var renderer: Renderer?
     private var currentCamera: Camera
     private var cameraController: CameraController
+    private var debugView: DebugView?
 
     public init(toolManager: ToolManager) {
         self.toolManager = toolManager
@@ -51,6 +52,15 @@ class ViewerManager {
         } else {
             Log.error("Failed to create selector")
         }
+
+        //Debug view
+        if let debugView = DebugView(device: view.device!) {
+            self.debugView = debugView
+            renderer.addRenderable(debugView)
+            Log.info("Added debug view to renderer")
+        } else {
+            Log.error("Failed to create debug view")
+        }
     }
 
     func resize(size: vec2i) {
@@ -60,6 +70,7 @@ class ViewerManager {
             height: Float(size.y)
         )
         renderer?.resize(size: size)
+        debugView?.resize(width: Float(size.x), height: Float(size.y))
     }
 
     func update(dt: Float, view: MTKView) {
