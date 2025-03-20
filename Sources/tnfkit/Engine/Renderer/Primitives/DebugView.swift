@@ -28,23 +28,23 @@ public class DebugView: RenderablePrimitive {
     private var indexBufferHandle: Handle?
     private var viewportWidth: Float = 800
     private var viewportHeight: Float = 600
-    private let relativeSize: Float = 0.2  // 20% of screen size
-    private let padding: Float = 100.0  // Padding from screen edges (in pixels)
-    private var defaultSamplerState: MTLSamplerState?
+    private let relativeSize: Float = 0.25  // 25% of screen size
+    private let padding: Float = 80.0  // Padding from screen edges (in pixels)
+    private var samplerState: MTLSamplerState?
+    private var maskTexture: Texture?
     
     public init?(device: MTLDevice) {
         // Create buffer stack
         bufferStack = BufferStack(device: device, label: "DebugView")
         
-        // Create a default sampler state
+        // Create a nearest-neighbor sampler for pixel-perfect mask display
         let samplerDescriptor = MTLSamplerDescriptor()
-        samplerDescriptor.minFilter = .linear
-        samplerDescriptor.magFilter = .linear
-        samplerDescriptor.mipFilter = .linear
+        samplerDescriptor.minFilter = .nearest
+        samplerDescriptor.magFilter = .nearest
         samplerDescriptor.sAddressMode = .clampToEdge
         samplerDescriptor.tAddressMode = .clampToEdge
         
-        defaultSamplerState = device.makeSamplerState(descriptor: samplerDescriptor)
+        samplerState = device.makeSamplerState(descriptor: samplerDescriptor)
 
         // Create pipeline with simple shaders
         var config = PipelineConfig(name: "DebugView")
@@ -104,10 +104,20 @@ public class DebugView: RenderablePrimitive {
     }
 
     private func updateQuadPosition() {
-        // Calculate quad size (20% of screen)
+        // Calculate a proper aspect ratio based on the selection mask if available
+        var aspectRatio: Float = 1.0
+        if let maskTexture = maskTexture {
+            let textureWidth = Float(maskTexture.width())
+            let textureHeight = Float(maskTexture.height())
+            if textureHeight > 0 {
+                aspectRatio = textureWidth / textureHeight
+            }
+        }
+        
+        // Calculate quad size (relative size of screen width)
         let quadWidth = viewportWidth * relativeSize
-        let quadHeight = viewportHeight * relativeSize
-
+        let quadHeight = quadWidth / aspectRatio // Maintain aspect ratio
+        
         // Position in top-right corner with padding
         let right = viewportWidth - padding
         let top = padding
@@ -134,42 +144,26 @@ public class DebugView: RenderablePrimitive {
         }
     }
 
-    // Set a texture to display in the debug view
-    public func setTexture(_ texture: Texture) {
-        textures = [TexturePair(texture: texture, type: .albedo)]
-    }
-
-    // Set a texture with specific type for visualization
-    public func setTexture(_ texture: Texture, type: TextureContentType) {
-        textures = [TexturePair(texture: texture, type: type)]
-    }
-    
     // Set selection mask texture for visualization
     public func setSelectionMask(_ texture: Texture) {
-        // Clear existing textures
+        // Store the mask texture directly
+        maskTexture = texture
+        
+        // Make sure the debug view is visible
+        isVisible = true
+        
+        // Clear any old texture references
         textures = []
         
-        // Use selection type which is bound at index 7 (matches debug.metal shader)
-        textures.append(TexturePair(texture: texture, type: .selection))
-    }
-
-    // Set multiple textures (if needed)
-    public func setTextures(_ texturePairs: [TexturePair]) {
-        textures = texturePairs
-    }
-
-    // Convenience method to quickly set a debug texture by name
-    public func setTextureFromBundle(device: MTLDevice, name: String, extension: String = "jpg") {
-        if let texture = Texture.fromBundle(device: device, name: name, extension: `extension`) {
-            setTexture(texture)
-        }
+        // Update the quad size to match the texture's aspect ratio
+        updateQuadPosition()
     }
 
     // Implementation of RenderablePrimitive protocol
     public func prepare(commandEncoder: MTLRenderCommandEncoder, camera: Camera) {
         guard isVisible else { return }
 
-        // Bind pipeline
+        // Bind pipeline - this must be done before any other commands
         pipeline.bind(to: commandEncoder)
 
         // Set necessary render states
@@ -178,23 +172,20 @@ public class DebugView: RenderablePrimitive {
         // Bind buffers
         bufferStack.bind(encoder: commandEncoder)
         
-        // Always set the default sampler state at index 0
-        if let samplerState = defaultSamplerState {
+        // Set sampler at index 0
+        if let samplerState = samplerState {
             commandEncoder.setFragmentSamplerState(samplerState, index: 0)
         }
 
-        // Bind textures
-        for texturePair in textures {
-            texturePair.texture.bind(
-                to: commandEncoder,
-                at: texturePair.type.getBindingIndex(),
-                for: .fragment
-            )
+        // Bind mask texture directly to fragment shader at index 0
+        if let maskTexture = maskTexture {
+            commandEncoder.setFragmentTexture(maskTexture.getMetalTexture(), index: 0)
         }
     }
 
     public func render(commandEncoder: MTLRenderCommandEncoder) {
-        guard isVisible, let indexBuffer = bufferStack.getBuffer(type: .index) else { return }
+        // Only render if we have a mask texture and are visible
+        guard isVisible, maskTexture != nil, let indexBuffer = bufferStack.getBuffer(type: .index) else { return }
 
         commandEncoder.drawIndexedPrimitives(
             type: primitiveType,
