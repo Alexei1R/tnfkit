@@ -40,7 +40,7 @@ public enum TextureContentType {
     case selection
     case unknown
 
-    // index
+    // index - Fixed method name to match existing codebase usage
     func getBidingIndex() -> Int {
         switch self {
         case .albedo: return 0
@@ -58,8 +58,8 @@ public enum TextureContentType {
 
 //NOTE: This is for renderable primitives
 public struct TexturePair {
-    var texture: Texture
-    var type: TextureContentType
+    public var texture: Texture
+    public var type: TextureContentType
 }
 
 public struct TextureConfig {
@@ -142,7 +142,7 @@ public final class Texture {
         descriptor.minFilter = .linear
         descriptor.magFilter = .linear
         descriptor.mipFilter = config.mipmapped ? .linear : .notMipmapped
-        
+
         // Use repeat addressing mode for better texture wrapping on 3D models
         // This is particularly important for seamless textures
         descriptor.sAddressMode = .repeat
@@ -254,14 +254,108 @@ public final class Texture {
         return nil
     }
 
+    // MARK: - Render Target Factory Methods
+
+    public static func createRenderTarget(
+        device: MTLDevice,
+        width: Int,
+        height: Int,
+        pixelFormat: MTLPixelFormat = .rgba8Unorm,
+        label: String = "RenderTarget"
+    ) -> Texture? {
+        var config = TextureConfig(name: label)
+        config.width = width
+        config.height = height
+        config.pixelFormat = pixelFormat
+        config.usage = [.shaderRead, .renderTarget]
+
+        return Texture(device: device, config: config)
+    }
+
+    public static func createDepthTexture(
+        device: MTLDevice,
+        width: Int,
+        height: Int,
+        pixelFormat: MTLPixelFormat = .depth32Float,
+        label: String = "DepthTexture"
+    ) -> Texture? {
+        var config = TextureConfig(name: label)
+        config.width = width
+        config.height = height
+        config.pixelFormat = pixelFormat
+        config.usage = [.shaderRead, .renderTarget]
+
+        return Texture(device: device, config: config)
+    }
+
+    public static func createStencilTexture(
+        device: MTLDevice,
+        width: Int,
+        height: Int,
+        pixelFormat: MTLPixelFormat = .stencil8,
+        label: String = "StencilTexture"
+    ) -> Texture? {
+        var config = TextureConfig(name: label)
+        config.width = width
+        config.height = height
+        config.pixelFormat = pixelFormat
+        config.usage = [.shaderRead, .renderTarget]
+
+        return Texture(device: device, config: config)
+    }
+
+    public static func createDepthStencilTexture(
+        device: MTLDevice,
+        width: Int,
+        height: Int,
+        label: String = "DepthStencilTexture"
+    ) -> Texture? {
+        var config = TextureConfig(name: label)
+        config.width = width
+        config.height = height
+
+        // Platform-specific handling for depth-stencil format
+        #if os(iOS) || os(tvOS)
+            config.pixelFormat = .depth32Float_stencil8
+        #else
+            config.pixelFormat = .depth32Float_stencil8
+        #endif
+
+        config.usage = [.shaderRead, .renderTarget]
+
+        return Texture(device: device, config: config)
+    }
+
+    public static func createMultisampleRenderTarget(
+        device: MTLDevice,
+        width: Int,
+        height: Int,
+        pixelFormat: MTLPixelFormat = .rgba8Unorm,
+        sampleCount: Int = 4,
+        label: String = "MultisampleRenderTarget"
+    ) -> Texture? {
+        var config = TextureConfig(name: label)
+        config.width = width
+        config.height = height
+        config.pixelFormat = pixelFormat
+        config.sampleCount = sampleCount
+        config.usage = [.renderTarget]
+
+        // Multisampled textures typically use private storage for performance
+        config.storageMode = .private
+
+        return Texture(device: device, config: config)
+    }
+
     // MARK: - Texture Operations
 
+    @discardableResult
     public func setData(
         data: UnsafeRawPointer,
         bytesPerRow: Int,
         region: MTLRegion? = nil,
         mipmapLevel: Int = 0
-    ) {
+    ) -> Texture {
         let actualRegion =
             region
             ?? MTLRegion(
@@ -275,31 +369,37 @@ public final class Texture {
             withBytes: data,
             bytesPerRow: bytesPerRow
         )
+
+        return self
     }
 
-    public func generateMipmaps() {
-        guard config.mipmapped && texture.mipmapLevelCount > 1 else { return }
+    @discardableResult
+    public func generateMipmaps() -> Texture {
+        guard config.mipmapped && texture.mipmapLevelCount > 1 else { return self }
 
         guard let commandQueue = device.makeCommandQueue(),
             let commandBuffer = commandQueue.makeCommandBuffer(),
             let blitEncoder = commandBuffer.makeBlitCommandEncoder()
         else {
             Log.error("Failed to create resources for mipmap generation")
-            return
+            return self
         }
 
         blitEncoder.generateMipmaps(for: texture)
         blitEncoder.endEncoding()
         commandBuffer.commit()
+
+        return self
     }
 
-    public func copyFrom(_ sourceTexture: Texture) {
+    @discardableResult
+    public func copyFrom(_ sourceTexture: Texture) -> Texture {
         guard let commandQueue = device.makeCommandQueue(),
             let commandBuffer = commandQueue.makeCommandBuffer(),
             let blitEncoder = commandBuffer.makeBlitCommandEncoder()
         else {
             Log.error("Failed to create resources for texture copy")
-            return
+            return self
         }
 
         let origin = MTLOrigin(x: 0, y: 0, z: 0)
@@ -323,10 +423,40 @@ public final class Texture {
 
         blitEncoder.endEncoding()
         commandBuffer.commit()
+
+        return self
+    }
+
+    // MARK: - Custom Sampler State
+
+    @discardableResult
+    public func setCustomSampler(
+        minFilter: MTLSamplerMinMagFilter = .linear,
+        magFilter: MTLSamplerMinMagFilter = .linear,
+        mipFilter: MTLSamplerMipFilter = .linear,
+        addressModeS: MTLSamplerAddressMode = .repeat,
+        addressModeT: MTLSamplerAddressMode = .repeat,
+        addressModeR: MTLSamplerAddressMode = .repeat
+    ) -> Texture {
+        let descriptor = MTLSamplerDescriptor()
+        descriptor.minFilter = minFilter
+        descriptor.magFilter = magFilter
+        descriptor.mipFilter = config.mipmapped ? mipFilter : .notMipmapped
+        descriptor.sAddressMode = addressModeS
+        descriptor.tAddressMode = addressModeT
+        descriptor.rAddressMode = addressModeR
+
+        samplerState = device.makeSamplerState(descriptor: descriptor)
+
+        return self
     }
 
     // MARK: - Binding
-    public func bind(to encoder: MTLRenderCommandEncoder, at index: Int, for stage: ShaderStage) {
+
+    @discardableResult
+    public func bind(to encoder: MTLRenderCommandEncoder, at index: Int, for stage: ShaderStage)
+        -> Texture
+    {
         // Bind texture and sampler in one call
         switch stage {
         case .vertex:
@@ -350,18 +480,84 @@ public final class Texture {
             Log.warning(
                 "Cannot bind to compute stage with render encoder. Use bindCompute instead.")
         }
+
+        return self
     }
 
-    public func bindCompute(to encoder: MTLComputeCommandEncoder, at index: Int) {
+    @discardableResult
+    public func bindCompute(to encoder: MTLComputeCommandEncoder, at index: Int) -> Texture {
         encoder.setTexture(texture, index: index)
 
         if let sampler = samplerState {
             encoder.setSamplerState(sampler, index: index)
         }
+
+        return self
+    }
+
+    @discardableResult
+    public func bindByContentType(
+        to encoder: MTLRenderCommandEncoder, for stage: ShaderStage, type: TextureContentType
+    ) -> Texture {
+        return bind(to: encoder, at: type.getBidingIndex(), for: stage)
     }
 
     public func getMetalTexture() -> MTLTexture {
         return texture
+    }
+
+    // MARK: - Utility
+
+    public func width() -> Int {
+        return texture.width
+    }
+
+    public func height() -> Int {
+        return texture.height
+    }
+
+    public func pixelFormat() -> MTLPixelFormat {
+        return texture.pixelFormat
+    }
+
+    public func isRenderTarget() -> Bool {
+        return config.usage.contains(.renderTarget)
+    }
+
+    public func isDepthTexture() -> Bool {
+        #if os(iOS) || os(tvOS)
+            let depthFormats: [MTLPixelFormat] = [
+                .depth16Unorm,
+                .depth32Float,
+                .depth32Float_stencil8,
+            ]
+        #else
+            let depthFormats: [MTLPixelFormat] = [
+                .depth16Unorm,
+                .depth32Float,
+                .depth32Float_stencil8,
+                .depth24Unorm_stencil8,
+            ]
+        #endif
+
+        return depthFormats.contains(texture.pixelFormat)
+    }
+
+    public func isStencilTexture() -> Bool {
+        #if os(iOS) || os(tvOS)
+            let stencilFormats: [MTLPixelFormat] = [
+                .stencil8,
+                .depth32Float_stencil8,
+            ]
+        #else
+            let stencilFormats: [MTLPixelFormat] = [
+                .stencil8,
+                .depth32Float_stencil8,
+                .depth24Unorm_stencil8,
+            ]
+        #endif
+
+        return stencilFormats.contains(texture.pixelFormat)
     }
 }
 
