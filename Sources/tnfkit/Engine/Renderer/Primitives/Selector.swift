@@ -21,6 +21,7 @@ public class Selector: @preconcurrency RenderablePrimitive {
     public var primitiveType: MTLPrimitiveType = .triangleStrip
     public var isVisible: Bool = false
     public var isSelectable: Bool = false
+    public var isSelectionTool: Bool = true
 
     //NOTE: Selection-specific properties
     private var vertexBufferHandle: Handle?

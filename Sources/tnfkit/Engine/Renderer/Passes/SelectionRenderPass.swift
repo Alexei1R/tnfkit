@@ -21,6 +21,7 @@ public class SelectionRenderPass {
 
     public init?(device: MTLDevice, name: String = "SelectionRenderPass") {
         self.device = device
+        
         self.renderPass = RenderPass(device: device, name: name)
 
         guard setupTextures(width: minDimension, height: minDimension) else {
@@ -38,10 +39,6 @@ public class SelectionRenderPass {
 
         // Check if dimensions actually changed from last resize operation
         if safeWidth == lastResizeWidth && safeHeight == lastResizeHeight && isReady {
-            // No change in dimensions, no need to recreate textures
-            Log.debug(
-                "Skipping selection texture resize - dimensions unchanged: \(safeWidth)x\(safeHeight)"
-            )
             return true
         }
 
@@ -88,13 +85,8 @@ public class SelectionRenderPass {
         return true
     }
 
-    public func begin(commandBuffer: MTLCommandBuffer) -> MTLRenderCommandEncoder? {
-        guard isReady, selectionTexture != nil else {
-            Log.error("Selection render pass not ready or texture missing")
-            return nil
-        }
-
-        return commandBuffer.makeRenderCommandEncoder(descriptor: renderPass.descriptor())
+    public func getDescriptor() -> MTLRenderPassDescriptor {
+        return renderPass.descriptor()
     }
 
     public func getSelectionTexture() -> Texture? {
@@ -105,19 +97,13 @@ public class SelectionRenderPass {
         return selectionTexture?.getMetalTexture()
     }
 
-    public func getDescriptor() -> MTLRenderPassDescriptor {
-        return renderPass.descriptor()
-    }
-
-    public func clear(commandBuffer: MTLCommandBuffer) {
+    public func clear(commandBuffer: CommandBuffer) {
         guard isReady else {
             return
         }
-
-        if let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPass.descriptor())
-        {
-            encoder.endEncoding()
-        }
+        
+        let encoder = commandBuffer.beginRenderPass(descriptor: renderPass.descriptor())
+        commandBuffer.endActiveEncoder()
     }
 
     public var isAvailable: Bool {
@@ -148,4 +134,3 @@ public class SelectionRenderPass {
         texture.bind(to: encoder, at: index, for: stage)
     }
 }
-

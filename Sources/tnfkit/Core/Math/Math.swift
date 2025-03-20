@@ -404,6 +404,7 @@ extension vec3f {
     public static let forward = vec3f(0, 0, 1)  // NOTE: Metal's coordinate system
 }
 
+
 extension SIMD2 {
     @inlinable public var xy: SIMD2<Scalar> { self }
     @inlinable public var yx: SIMD2<Scalar> { SIMD2(y, x) }

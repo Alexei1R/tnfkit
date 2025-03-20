@@ -59,11 +59,17 @@ class ViewerManager {
             width: Float(size.x),
             height: Float(size.y)
         )
+        renderer?.resize(size: size)
     }
 
     func update(dt: Float, view: MTKView) {
         guard let renderer = renderer else { return }
         renderer.beginFrame(camera: currentCamera, deltaTime: dt)
+
+        if toolManager.getActiveTool() == .select {
+            renderer.processSelectionPass()
+        }
+
         renderer.endFrame(view: view)
 
         //Lock the camera if the tool is not control
